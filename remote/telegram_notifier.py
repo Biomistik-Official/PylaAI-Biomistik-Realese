@@ -202,11 +202,14 @@ async def async_notify_user(
                 data.add_field("photo", image_bytes.getvalue(), filename="screenshot.png", content_type="image/png")
                 data.add_field("caption", text_message)
                 data.add_field("parse_mode", "HTML")
-                
+
                 async with session.post(url, data=data) as resp:
                     resp_data = await resp.json()
                     if not resp_data.get("ok"):
+                        err = resp_data.get("description") or str(resp_data)
                         print(f"Telegram photo send failed: {resp_data}")
+                        if event_type == "test":
+                            raise RuntimeError(f"Telegram API error: {err}")
                         return False
             else:
                 url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
@@ -218,13 +221,20 @@ async def async_notify_user(
                 async with session.post(url, json=payload) as resp:
                     resp_data = await resp.json()
                     if not resp_data.get("ok"):
+                        err = resp_data.get("description") or str(resp_data)
                         print(f"Telegram message send failed: {resp_data}")
+                        if event_type == "test":
+                            raise RuntimeError(f"Telegram API error: {err}")
                         return False
-                        
+
         print(f"Telegram notification sent: {event_type}")
         return True
+    except RuntimeError:
+        raise
     except Exception as exc:
         print(f"Telegram notification failed ({event_type}): {exc}")
+        if event_type == "test":
+            raise RuntimeError(f"Connection error: {exc}") from exc
         return False
 
 async def async_send_test_notification() -> bool:
