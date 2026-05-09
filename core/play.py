@@ -630,6 +630,7 @@ class Play(Movement):
             "teammate_data": getattr(self, "last_playstyle_teammate_data", None),
             "walls": walls,
             "game_mode": self.game_mode,
+            "is_brawlball": getattr(self, 'is_brawlball', False),
             "persistent_data": persistent_data,
             "seconds_to_hold_attack_after_reaching_max": self.seconds_to_hold_attack_after_reaching_max,
             "is_hypercharge_ready": self.is_hypercharge_ready,

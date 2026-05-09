@@ -145,8 +145,10 @@ def explore():
     cx, cy = width / 2, height / 2
     if get_distance(player_pos, (cx, cy)) > TILE_SIZE * 3:
         return move_toward((cx, cy))
-    # Default roam direction if everything else fails
-    return find_best_angle(player_pos, 45.0, walls)
+    # Default roam direction: in Brawl Ball push UP toward enemy goal (270°),
+    # in other modes use a forward-ish angle (315°) to avoid always going bottom-right.
+    default_angle = 270.0 if is_brawlball else 315.0
+    return find_best_angle(player_pos, default_angle, walls)
 
 # ═══════════════════════════════════════════════════════
 #  ENEMY DETECTION
