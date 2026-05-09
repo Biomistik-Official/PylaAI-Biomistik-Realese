@@ -663,7 +663,7 @@ def pyla_main(data):
                     if time.time() - getattr(self, "last_reward_blind_click", 0.0) > 2.0:
                         print("Fallback: Unrecognized cosmetic reward detected. Blind tapping to skip...")
                         self.window_controller.keys_up(list("wasd"))
-                        self.window_controller.press_key("Q")
+                        self.window_controller.click(int(1800 * self.window_controller.width_ratio), int(500 * self.window_controller.height_ratio))
                         self.last_reward_blind_click = time.time()
                         
                 self.state = state
