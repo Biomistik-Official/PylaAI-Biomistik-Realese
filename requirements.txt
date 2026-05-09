@@ -1,5 +1,4 @@
-﻿adbutils==2.12.0
-aiohappyeyeballs==2.6.1
+﻿aiohappyeyeballs==2.6.1
 aiohttp==3.13.5
 aiosignal==1.4.0
 altgraph==0.17.5
@@ -74,8 +73,8 @@ sympy==1.14.0
 Telethon==1.43.0
 tifffile==2026.3.3
 toml==0.10.2
-torch==2.11.0+cpu
-torchvision==0.26.0+cpu
+torch
+torchvision
 typing_extensions==4.15.0
 ultralytics==8.4.47
 ultralytics-thop==2.0.19
