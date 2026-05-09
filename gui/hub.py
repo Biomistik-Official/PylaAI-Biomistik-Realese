@@ -586,9 +586,12 @@ class Hub:
 
             def _fetch():
                 try:
-                    from common.utils import fetch_brawl_stars_player, load_toml_as_dict, save_dict_as_toml, resolve_instance_path
+                    from common.utils import fetch_brawl_stars_player, load_brawl_stars_api_config, save_dict_as_toml, resolve_instance_path
                     cfg_path = resolve_instance_path("cfg/brawl_stars_api.toml")
-                    api_cfg = load_toml_as_dict(cfg_path)
+                    # Use load_brawl_stars_api_config so the token is auto-refreshed
+                    # if developer_email/password are configured, saving the user a
+                    # trip to developer.brawlstars.com.
+                    api_cfg = load_brawl_stars_api_config(cfg_path)
                     token = api_cfg.get("api_token", "")
                     data = fetch_brawl_stars_player(token, tag_raw, timeout=10)
                     name = data.get("name", "Unknown")
