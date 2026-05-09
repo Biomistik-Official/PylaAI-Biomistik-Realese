@@ -12,7 +12,6 @@ import json
 from remote.runtime_control import read_state, write_state, RUNNING, PAUSED
 from remote.telegram_notifier import load_telegram_settings
 from common.utils import _config_bool
-from common.stats_card import generate_stats_card
 
 def set_runtime_state(state_path: str | Path, paused: bool) -> str:
     state = PAUSED if paused else RUNNING
@@ -155,17 +154,11 @@ class TelegramControlServer:
                 await self.send_message(session, url, chat_id, "Failed to retrieve stats.")
                 return
             
-            try:
-                card_path = generate_stats_card("logs/stats_dashboard.png", details=stats)
-                with open(card_path, "rb") as f:
-                    await self.send_photo(session, url, chat_id, f.read(), "📊 <b>Session Statistics</b>")
-            except Exception as e:
-                print(f"Error generating stats card: {e}")
-                msg = f"📊 <b>Session Statistics</b>\n\n"
-                msg += f"🏆 Trophies: {stats.get('trophies', 0)}\n"
-                msg += f"🔥 Win Streak: {stats.get('win_streak', 0)}\n"
-                msg += f"✅ Total Wins: {stats.get('wins', 0)}"
-                await self.send_message(session, url, chat_id, msg)
+            msg = f"📊 <b>Session Statistics</b>\n\n"
+            msg += f"🏆 Trophies: {stats.get('trophies', 0)}\n"
+            msg += f"🔥 Win Streak: {stats.get('win_streak', 0)}\n"
+            msg += f"✅ Total Wins: {stats.get('wins', 0)}"
+            await self.send_message(session, url, chat_id, msg)
             
         elif command == "/queue":
             if not self.get_queue_cb:
