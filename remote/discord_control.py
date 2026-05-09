@@ -11,6 +11,7 @@ from discord import app_commands
 from remote.runtime_control import PAUSED, RUNNING, read_state, write_state
 from common.utils import _config_bool
 from remote.discord_notifier import load_webhook_settings
+from common.stats_card import generate_stats_card
 
 
 def _clean_id(value: Any) -> str:
@@ -145,15 +146,21 @@ class DiscordControlServer:
                 await _reply(interaction, "Failed to retrieve stats.")
                 return
                 
-            embed = discord.Embed(title="📊 Session Statistics", color=discord.Color.blue())
-            embed.add_field(name="🏆 Trophies", value=str(stats.get('trophies', 0)), inline=True)
-            embed.add_field(name="🔥 Win Streak", value=str(stats.get('win_streak', 0)), inline=True)
-            embed.add_field(name="✅ Total Wins", value=str(stats.get('wins', 0)), inline=True)
-            
             try:
-                await interaction.response.send_message(embed=embed, ephemeral=True)
-            except discord.InteractionResponded:
-                await interaction.followup.send(embed=embed, ephemeral=True)
+                await interaction.response.defer(ephemeral=True)
+                card_path = generate_stats_card("logs/stats_dashboard.png", details=stats)
+                file = discord.File(card_path, filename="dashboard.png")
+                await interaction.followup.send(content="📊 **Session Statistics**", file=file, ephemeral=True)
+            except Exception as e:
+                print(f"Error generating stats card: {e}")
+                embed = discord.Embed(title="📊 Session Statistics", color=discord.Color.blue())
+                embed.add_field(name="🏆 Trophies", value=str(stats.get('trophies', 0)), inline=True)
+                embed.add_field(name="🔥 Win Streak", value=str(stats.get('win_streak', 0)), inline=True)
+                embed.add_field(name="✅ Total Wins", value=str(stats.get('wins', 0)), inline=True)
+                try:
+                    await interaction.response.send_message(embed=embed, ephemeral=True)
+                except discord.InteractionResponded:
+                    await interaction.followup.send(embed=embed, ephemeral=True)
                 
         @tree.command(name="queue", description="Show the current brawler queue.")
         async def queue_command(interaction: discord.Interaction) -> None:
