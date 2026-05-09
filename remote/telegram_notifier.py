@@ -9,7 +9,8 @@ import aiohttp
 import numpy as np
 from PIL import Image
 
-from common.utils import _config_bool, load_toml_as_dict
+import toml
+from common.utils import _config_bool, load_toml_as_dict, clear_toml_cache
 
 TELEGRAM_CONFIG_PATH = "cfg/telegram_config.toml"
 
@@ -43,6 +44,8 @@ RESULT_LABELS = {
 }
 
 def load_telegram_settings() -> dict[str, Any]:
+    # Always re-read from disk so background threads see the latest saved token.
+    clear_toml_cache(TELEGRAM_CONFIG_PATH)
     general_config = load_toml_as_dict("cfg/general_config.toml")
     config_path = TELEGRAM_CONFIG_PATH
     webhook_config = dict(load_toml_as_dict(config_path))
