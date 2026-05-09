@@ -508,7 +508,14 @@ class SelectBrawler:
     # --- PUSH ALL LOGIC ---
     def get_push_all_data(self, target_trophies=1000):
         target_trophies = int(target_trophies)
-        api_config = load_brawl_stars_api_config("cfg/brawl_stars_api.toml")
+        # Force-refresh the token so it always matches the current public IP.
+        # This prevents "accessDenied" errors when the user's IP has changed
+        # since the token was last generated.
+        try:
+            api_config = load_brawl_stars_api_config("cfg/brawl_stars_api.toml", force_refresh=True)
+        except Exception:
+            # If force-refresh fails (e.g. no credentials), fall back to cached token.
+            api_config = load_brawl_stars_api_config("cfg/brawl_stars_api.toml")
         
         # Override with UI tag if changed
         current_tag = self.tag_var.get().strip() or api_config.get("player_tag", "").strip()
