@@ -1,0 +1,339 @@
+{"name": "Universal Smart v4", "description": "Archetype AI: ASSASSIN/TANK/SNIPER/LOBS/RANGED, LoS check, Trio Showdown focus", "brawlers": ["all"], "gamemodes": ["all"], "author": "Antigravity", "date": "2026-05-09"}
+# ═══════════════════════════════════════════════════════
+#  SETUP
+# ═══════════════════════════════════════════════════════
+brawler_info = brawlers_info.get(brawler)
+if not brawler_info:
+    raise ValueError(f"Brawler '{brawler}' not found in brawlers_info.")
+
+must_hold   = must_brawler_hold_attack(brawler, brawlers_info)
+safe_range, attack_range, super_range = get_brawler_range(brawler)
+player_pos  = get_player_pos(player_data)
+now         = time.time()
+pd          = persistent_data
+
+# ═══════════════════════════════════════════════════════
+#  HOLD ATTACK AUTO-RELEASE
+# ═══════════════════════════════════════════════════════
+if must_hold and pd["time_since_holding_attack"] is not None:
+    hold_limit = brawler_info['hold_attack'] + seconds_to_hold_attack_after_reaching_max
+    if time.time() - pd["time_since_holding_attack"] >= hold_limit:
+        attack(touch_up=True, touch_down=False)
+        pd["time_since_holding_attack"] = None
+
+# ═══════════════════════════════════════════════════════
+#  ARCHETYPE DETECTION
+#  ASSASSIN  : attack_range <= 256  (mortis, edgar, buzz, fang, lily, kaze,
+#                                    gigi, bolt, alli, kenji, draco, sam, kit)
+#  TANK       : safe_range == 0 AND attack_range <= 350  (bull, elprimo,
+#                                    jacky, rosa, ash, buster, trunk, cordelius)
+#  SNIPER     : attack_range >= 600  (piper, bea, belle, byron, 8bit, hank,
+#                                    angelo, najia, pierce, rt, mina)
+#  LOBS       : ignore_walls_for_attacks == true  (barley, dynamike, tick,
+#                                    grom, willow, ziggy, sirius, juju, larrylawrie)
+#  RANGED     : everything else  (colt, shelly, spike, crow, bo, tara, ...)
+# ═══════════════════════════════════════════════════════
+def detect_archetype():
+    ar          = float(brawler_info.get('attack_range', 400))
+    sr          = float(brawler_info.get('safe_range', 200))
+    wall_ignore = brawler_info.get('ignore_walls_for_attacks', False)
+    if wall_ignore:
+        return 'LOBS'
+    if ar <= 256:
+        return 'ASSASSIN'
+    if sr == 0.0 and ar <= 350:
+        return 'TANK'
+    if ar >= 600:
+        return 'SNIPER'
+    return 'RANGED'
+
+archetype = detect_archetype()
+
+# ═══════════════════════════════════════════════════════
+#  AIM ANGLE HELPER
+#  Computes the angle to the enemy in degrees (0=right, 90=down).
+#  For SNIPER and RANGED: uses lead-shot prediction if enemy is moving.
+# ═══════════════════════════════════════════════════════
+def compute_aim_angle(p_pos, e_pos):
+    dx = e_pos[0] - p_pos[0]
+    dy = e_pos[1] - p_pos[1]
+    return angle_from_direction(dx, dy)
+
+def compute_lead_angle(p_pos, e_pos, e_vel, confidence=1.0):
+    """Predict where the enemy will be when projectile arrives."""
+    dist = get_distance(p_pos, e_pos)
+    if dist < 1:
+        return compute_aim_angle(p_pos, e_pos)
+    return lead_shot_angle(p_pos, e_pos, e_vel, confidence=confidence)
+
+# ═══════════════════════════════════════════════════════
+#  HELPER FUNCTIONS
+# ═══════════════════════════════════════════════════════
+def do_attack():
+    if not must_hold:
+        attack()
+    else:
+        if pd["time_since_holding_attack"] is None:
+            pd["time_since_holding_attack"] = time.time()
+            attack(touch_up=False, touch_down=True)
+        elif time.time() - pd["time_since_holding_attack"] >= brawler_info['hold_attack']:
+            attack(touch_up=True, touch_down=False)
+            pd["time_since_holding_attack"] = None
+
+def do_aimed_attack(e_pos, e_vel=None, confidence=0.0):
+    """Aimed attack for SNIPER and RANGED — uses lead shot if velocity known."""
+    if e_vel and (abs(e_vel[0]) > 20 or abs(e_vel[1]) > 20) and confidence > 0.3:
+        angle = compute_lead_angle(player_pos, e_pos, e_vel, confidence)
+    else:
+        angle = compute_aim_angle(player_pos, e_pos)
+    aimed_attack(angle)
+
+
+def move_toward(target_pos):
+    """Move toward target using smooth analog angle, wall-aware."""
+    dx = target_pos[0] - player_pos[0]
+    dy = target_pos[1] - player_pos[1]
+    desired = angle_from_direction(dx, dy)
+    return find_best_angle(player_pos, desired, walls)
+
+def move_away_from(target_pos):
+    """Retreat from target using smooth analog angle, wall-aware."""
+    dx = player_pos[0] - target_pos[0]
+    dy = player_pos[1] - target_pos[1]
+    desired = angle_from_direction(dx, dy)
+    flee_angle = (desired + 180.0) % 360.0
+    return find_best_angle(player_pos, flee_angle, walls)
+
+def strafe_around(target_pos):
+    """Perpendicular kite movement relative to enemy, using smooth analog angle."""
+    dx = target_pos[0] - player_pos[0]
+    dy = target_pos[1] - player_pos[1]
+    desired = angle_from_direction(dx, dy)
+    # Alternate strafe side every 2 seconds
+    side = 1 if int(time.time() / 2) % 2 == 0 else -1
+    perp = (desired + 90.0 * side) % 360.0
+    return find_best_angle(player_pos, perp, walls)
+
+def avoid_gas():
+    opp_angles = {"up": 90.0, "down": 270.0, "left": 0.0, "right": 180.0}
+    y_angle = None
+    x_angle = None
+    
+    for d in ["up", "down"]:
+        if is_there_poison_gas(d, player_data):
+            y_angle = opp_angles[d]
+            break
+            
+    for d in ["left", "right"]:
+        if is_there_poison_gas(d, player_data):
+            x_angle = opp_angles[d]
+            break
+            
+    if y_angle is not None and x_angle is not None:
+        return blend_angles(y_angle, x_angle, 0.5)
+    elif y_angle is not None:
+        return y_angle
+    elif x_angle is not None:
+        return x_angle
+    return None
+
+def explore():
+    """No-enemy movement: follow teammate or move to center."""
+    tm_pos, tm_dist = find_closest_teammate(teammate_data, player_pos, walls)
+    if tm_pos and tm_dist > TILE_SIZE * 4:
+        return move_toward(tm_pos)
+    cx, cy = width / 2, height / 2
+    if get_distance(player_pos, (cx, cy)) > TILE_SIZE * 3:
+        return move_toward((cx, cy))
+    # Default roam direction if everything else fails
+    return find_best_angle(player_pos, 45.0, walls)
+
+# ═══════════════════════════════════════════════════════
+#  ENEMY DETECTION
+# ═══════════════════════════════════════════════════════
+flee_gas       = avoid_gas()
+enemy_coords   = None
+enemy_distance = None
+
+if is_there_enemy(enemy_data):
+    enemy_coords, enemy_distance = find_closest_enemy(
+        enemy_data, player_pos, walls, "attack"
+    )
+
+# Track enemy velocity for lead-shot (returned as (vx, vy))
+enemy_vel        = (0.0, 0.0)
+enemy_confidence = 0.0
+if enemy_coords:
+    _vx, _vy = track_enemy_velocity(enemy_coords, time.time())
+    enemy_vel        = (_vx, _vy)
+    enemy_confidence = 1.0 if (abs(_vx) + abs(_vy)) > 30 else 0.0
+
+
+# ═══════════════════════════════════════════════════════
+#  MAIN BEHAVIOR TREE
+# ═══════════════════════════════════════════════════════
+movement = None
+
+# ─ Priority 0: Semicircle escape (wall-stuck recovery) ─
+_escape_angle = escape_step()  # None if no escape active
+if _escape_angle is not None:
+    # Ongoing escape maneuver — follow the arc angle
+    movement = _escape_angle
+    # Still attack if enemy is hittable during escape
+    if enemy_coords and enemy_distance <= attack_range:
+        if is_enemy_hittable(player_pos, enemy_coords, walls, "attack"):
+            do_attack()
+
+else:
+    # Check if we are stuck right now (stationary walls while trying to move)
+    _stuck = detect_wall_stuck(True)
+    if _stuck:
+        # Trigger escape — retreat away from enemy (or default direction)
+        if enemy_coords:
+            _dx = enemy_coords[0] - player_pos[0]
+            _dy = enemy_coords[1] - player_pos[1]
+            _toward_enemy = angle_from_direction(_dx, _dy)
+        else:
+            _toward_enemy = 0.0
+        start_escape(_toward_enemy)  # escape = retreat opposite to toward_enemy
+
+# ─ Priority 1: Gas escape ─────────────────────────────
+if not movement and flee_gas:
+    movement = flee_gas
+    if enemy_coords and enemy_distance <= attack_range:
+        if is_enemy_hittable(player_pos, enemy_coords, walls, "attack"):
+            do_attack()
+
+# ─ Priority 2: No enemy → explore ────────────────────
+elif not movement and enemy_coords is None:
+    movement = explore()
+
+# ─ Priority 3: Combat ─────────────────────────────────
+elif not movement and enemy_coords is not None:
+    can_hit   = is_enemy_hittable(player_pos, enemy_coords, walls, "attack")
+    can_super = is_enemy_hittable(player_pos, enemy_coords, walls, "super")
+
+    # --- Super check (universal) ---
+    if is_super_ready and pd["time_since_holding_attack"] is None:
+        super_type = brawler_info.get('super_type', 'damage')
+        if should_use_super_on_enemy(
+            brawler, super_type, enemy_distance, attack_range, super_range, can_super
+        ):
+            if is_hypercharge_ready:
+                use_hypercharge()
+            use_super()
+
+    # ─────────────────────────────────────────────────
+    #  ARCHETYPE COMBAT LOGIC
+    # ─────────────────────────────────────────────────
+
+    # ── ASSASSIN: close gap aggressively, attack only in melee ──
+    if archetype == 'ASSASSIN':
+        ideal_dist = attack_range * 0.8
+        if enemy_distance > ideal_dist:
+            # Rush toward enemy, use walls as cover
+            movement = move_toward(enemy_coords)
+        else:
+            # In range — attack and strafe to avoid getting kited
+            if can_hit:
+                do_attack()
+                if is_gadget_ready:
+                    use_gadget()
+            movement = strafe_around(enemy_coords)
+        # Super: use when enemy is close enough to hit
+        if is_super_ready and enemy_distance <= super_range and can_super:
+            use_super()
+
+    # ── TANK: push forward, absorb damage, don't retreat ──
+    elif archetype == 'TANK':
+        ideal_dist = attack_range * 0.85
+        if enemy_distance > ideal_dist:
+            movement = move_toward(enemy_coords)
+        else:
+            if can_hit:
+                do_attack()
+                if is_gadget_ready:
+                    use_gadget()
+            # Tanks don't retreat — they strafe or push
+            if enemy_distance > attack_range * 0.5:
+                movement = move_toward(enemy_coords)
+            else:
+                movement = strafe_around(enemy_coords)
+
+    # ── SNIPER: maximum distance, aimed attack, retreat if close ──
+    elif archetype == 'SNIPER':
+        min_safe  = attack_range * 0.55   # too close → danger
+        ideal_far = attack_range * 0.88   # optimal sniper range
+
+        if enemy_distance < min_safe:
+            # Too close — disengage, shoot while retreating
+            movement = move_away_from(enemy_coords)
+            if can_hit:
+                do_aimed_attack(enemy_coords, enemy_vel, enemy_confidence)
+        elif enemy_distance <= ideal_far:
+            # Sweet spot — ONLY shoot with clear LoS + aimed attack
+            if can_hit:
+                do_aimed_attack(enemy_coords, enemy_vel, enemy_confidence)
+                if is_gadget_ready:
+                    use_gadget()
+            movement = strafe_around(enemy_coords)
+        else:
+            # Too far — close slightly
+            if can_hit:
+                do_aimed_attack(enemy_coords, enemy_vel, enemy_confidence)
+            movement = move_toward(enemy_coords)
+
+    # ── LOBS: attacks ignore walls, stay at mid range ──
+    elif archetype == 'LOBS':
+        ideal_dist = attack_range * 0.75
+        # Lobs can attack through walls — always attack in range
+        if enemy_distance <= attack_range:
+            do_attack()
+            if is_gadget_ready:
+                use_gadget()
+        if enemy_distance < attack_range * 0.5:
+            # Too close — back up
+            movement = move_away_from(enemy_coords)
+        elif enemy_distance > ideal_dist:
+            movement = move_toward(enemy_coords)
+        else:
+            movement = strafe_around(enemy_coords)
+
+    # ── RANGED: kite, optimal range, aimed attack, LoS required ──
+    else:  # RANGED
+        min_safe  = safe_range * 0.75
+        ideal_far = attack_range * 0.78
+
+        if enemy_distance < min_safe:
+            # Enemy too close — back off while shooting
+            movement = move_away_from(enemy_coords)
+            if can_hit:
+                do_aimed_attack(enemy_coords, enemy_vel, enemy_confidence)
+        elif enemy_distance <= ideal_far:
+            # Optimal zone — strafe and aimed shoot
+            if can_hit:
+                do_aimed_attack(enemy_coords, enemy_vel, enemy_confidence)
+                if is_gadget_ready:
+                    use_gadget()
+            movement = strafe_around(enemy_coords)
+        elif enemy_distance <= attack_range:
+            # Slightly far but in range
+            if can_hit:
+                do_aimed_attack(enemy_coords, enemy_vel, enemy_confidence)
+            movement = strafe_around(enemy_coords)
+        else:
+            # Out of range → close in
+            movement = move_toward(enemy_coords)
+            if can_hit and enemy_distance <= attack_range * 1.1:
+                do_aimed_attack(enemy_coords, enemy_vel, enemy_confidence)
+
+    # --- If no LoS and we haven't moved yet — always flank ---
+    if not can_hit and not movement:
+        movement = move_toward(enemy_coords)
+
+# ═══════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════
+#  FINAL WALL VALIDATION (Analog)
+# ═══════════════════════════════════════════════════════
+if movement is not None and is_path_blocked_angle(player_pos, movement, walls):
+    movement = (movement + 180.0) % 360.0

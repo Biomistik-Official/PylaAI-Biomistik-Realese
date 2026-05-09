@@ -1,0 +1,22 @@
+﻿webhook_url = ""
+discord_id = ""
+username = "Pyla-Biomistik"
+send_match_summary = true
+include_screenshot = true
+ping_when_stuck = true
+ping_when_target_is_reached = true
+ping_every_x_match = 0
+ping_every_x_minutes = 0
+discord_control_enabled = true
+discord_bot_token = ""
+discord_control_user_id = ""
+discord_control_channel_id = ""
+discord_control_guild_id = ""
+
+# Setup help:
+# - webhook_url: Server Settings -> Integrations -> Webhooks -> New Webhook -> Copy Webhook URL.
+# - discord_bot_token: https://discord.com/developers/applications -> your app -> Bot -> Reset/View Token.
+# - discord_control_user_id: enable Discord Developer Mode, right-click your profile, Copy User ID.
+# - discord_control_channel_id: right-click the command channel, Copy Channel ID.
+# - discord_control_guild_id: right-click the server icon, Copy Server ID.
+# Invite the bot with OAuth2 scopes: bot and applications.commands.
