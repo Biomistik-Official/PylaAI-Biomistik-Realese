@@ -151,10 +151,10 @@ class LobbyAutomation:
                 # Brawler not found on screen — scroll down and try again
                 if c == 0:
                     # First iteration: small scroll to stabilise view
-                    self.window_controller.swipe(int(1850 * wr), int(900 * hr), int(1850 * wr), int(850 * hr), duration=0.8)
+                    self.window_controller.swipe(int(1760 * wr), int(900 * hr), int(1760 * wr), int(850 * hr), duration=0.8)
                     c += 1
                 else:
-                    self.window_controller.swipe(int(1850 * wr), int(900 * hr), int(1850 * wr), int(650 * hr), duration=0.8)
+                    self.window_controller.swipe(int(1760 * wr), int(900 * hr), int(1760 * wr), int(650 * hr), duration=0.8)
                 time.sleep(1)
 
         if not found_brawler:
