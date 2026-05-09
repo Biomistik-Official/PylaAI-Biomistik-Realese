@@ -8,7 +8,7 @@ import tempfile
 
 # URL to download the latest main branch zip from your GitHub repository
 # Make sure this URL matches your actual GitHub repository
-REPO_ZIP_URL = "https://github.com/Biomistik/PylaAI-Biomistik-Realese/archive/refs/heads/main.zip"
+REPO_ZIP_URL = "https://github.com/Biomistik-Official/PylaAI-Biomistik-Realese/archive/refs/heads/main.zip"
 
 # List of files to NEVER overwrite so user settings are preserved
 PROTECTED_FILES = [
