@@ -138,17 +138,28 @@ def avoid_gas():
     return None
 
 def explore():
-    """No-enemy movement: follow teammate or move to center."""
+    """No-enemy movement: follow teammate or roam toward enemy goal."""
+    # Follow visible teammate if they are far away
     tm_pos, tm_dist = find_closest_teammate(teammate_data, player_pos, walls)
     if tm_pos and tm_dist > TILE_SIZE * 4:
         return move_toward(tm_pos)
-    cx, cy = width / 2, height / 2
-    if get_distance(player_pos, (cx, cy)) > TILE_SIZE * 3:
-        return move_toward((cx, cy))
-    # Default roam direction: in Brawl Ball push UP toward enemy goal (270°),
-    # in other modes use a forward-ish angle (315°) to avoid always going bottom-right.
-    default_angle = 270.0 if is_brawlball else 315.0
-    return find_best_angle(player_pos, default_angle, walls)
+
+    # NOTE: Do NOT use (width/2, height/2) as the 'center' target.
+    # `width` and `height` are the 1920×1080 reference dimensions, but
+    # player_pos is in real captured-frame pixels (0–960, 0–540), so
+    # (960, 540) is actually the bottom-right CORNER of the frame —
+    # which is exactly the bug that causes the 'bottom-right magnet'.
+
+    if is_brawlball:
+        # In Brawl Ball push UP toward the enemy goal (270° = up).
+        # Try progressively wider angles if the direct path is blocked.
+        for angle in [270.0, 255.0, 285.0, 240.0, 300.0, 210.0, 330.0, 180.0, 0.0]:
+            if not is_path_blocked_angle(player_pos, angle, walls):
+                return angle
+        return find_best_angle(player_pos, 270.0, walls)
+    else:
+        # Other modes: slightly forward-right (not bottom-right 45°)
+        return find_best_angle(player_pos, 315.0, walls)
 
 # ═══════════════════════════════════════════════════════
 #  ENEMY DETECTION
