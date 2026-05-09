@@ -540,8 +540,8 @@ def check_version():
 
 async def async_notify_user(message_type: str | None = None, screenshot: Image = None, details=None) -> bool:
     import asyncio
-    from discord_notifier import async_notify_user as send_discord_notification
-    from telegram_notifier import async_notify_user as send_telegram_notification
+    from remote.discord_notifier import async_notify_user as send_discord_notification
+    from remote.telegram_notifier import async_notify_user as send_telegram_notification
 
     # Run both notifications concurrently
     results = await asyncio.gather(
