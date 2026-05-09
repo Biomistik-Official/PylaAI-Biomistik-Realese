@@ -294,7 +294,7 @@ def pyla_main(data):
             self.Play.time_since_detections["player"] = time.time()
             self.Play.time_since_detections["enemy"] = time.time()
             opened_package = self.window_controller.foreground_package(timeout=4)
-            if opened_package and opened_package != window_controller.BRAWL_STARS_PACKAGE:
+            if opened_package and opened_package != self.window_controller.brawl_stars_package:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:

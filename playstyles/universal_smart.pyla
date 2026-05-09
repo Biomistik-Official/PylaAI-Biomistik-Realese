@@ -84,6 +84,16 @@ def do_aimed_attack(e_pos, e_vel=None, confidence=0.0):
     """Aimed attack for SNIPER and RANGED — uses lead shot if velocity known."""
     if e_vel and (abs(e_vel[0]) > 20 or abs(e_vel[1]) > 20) and confidence > 0.3:
         angle = compute_lead_angle(player_pos, e_pos, e_vel, confidence)
+        
+        # Verify the lead angle doesn't shoot into a wall
+        dist = get_distance(player_pos, e_pos)
+        lx = player_pos[0] + math.cos(math.radians(angle)) * dist
+        ly = player_pos[1] + math.sin(math.radians(angle)) * dist
+        
+        # If the predicted path hits a wall, fallback to direct aim
+        if not brawler_info.get('ignore_walls_for_attacks', False):
+            if walls_block_line_of_sight(player_pos, (lx, ly), walls, 15):
+                angle = compute_aim_angle(player_pos, e_pos)
     else:
         angle = compute_aim_angle(player_pos, e_pos)
     aimed_attack(angle)

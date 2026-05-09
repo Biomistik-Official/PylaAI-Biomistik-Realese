@@ -656,6 +656,7 @@ class Play(Movement):
             "is_path_blocked": self.is_path_blocked,
             "is_path_blocked_angle": self.is_path_blocked_angle,
             "is_enemy_hittable": self.is_enemy_hittable,
+            "walls_block_line_of_sight": self.walls_block_line_of_sight,
             "aimed_attack": self.aimed_attack,
             "get_distance": self.get_distance,
             "get_random_movement": lambda: random.choice(["WA", "WD", "SA", "SD", "W", "A", "S", "D"]),
@@ -1470,7 +1471,7 @@ class Play(Movement):
     def is_enemy_hittable(self, player_pos, enemy_pos, walls, skill_type):
         if self.can_attack_through_walls(self.current_brawler, skill_type, self.brawlers_info):
             return True
-        if self.walls_block_line_of_sight(player_pos, enemy_pos, walls):
+        if self.walls_block_line_of_sight(player_pos, enemy_pos, walls, padding=15):
             return False
         return True
 
