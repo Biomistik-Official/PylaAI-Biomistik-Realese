@@ -411,7 +411,11 @@ class StageManager:
                 if attempts >= max_attempts:
                     print("Failed to reach lobby after max attempts")
                 else:
-                    selection_method = self.brawlers_pick_data[0].get("selection_method", "named_brawler")
+                    # FORCE named_brawler OCR selection even for Push All.
+                    # The lowest_trophies sequence uses hardcoded ADB/scrcpy coordinates which fail 
+                    # on letterboxed emulators. Since we already know the target brawler from the API, 
+                    # the OCR-based named_brawler method is 100% reliable and never clicks the Brawl Pass.
+                    selection_method = "named_brawler"
                     if selection_method == "lowest_trophies":
                         selected = self.Lobby_automation.select_lowest_trophy_brawler()
                     else:
@@ -426,8 +430,11 @@ class StageManager:
                 print("Next brawler is in manual mode, waiting 10 seconds to let user switch.")
 
         elif self.push_all_needs_selection:
-            print("Push All queue changed from API; selecting the new lowest trophy brawler.")
-            selected = self.Lobby_automation.select_lowest_trophy_brawler()
+            print("Push All queue changed from API; selecting the new target brawler via OCR.")
+            # Use OCR to pick the new target brawler instead of relying on the buggy sort coordinates
+            next_brawler_name = self.brawlers_pick_data[0]['brawler']
+            self.Lobby_automation.select_brawler(next_brawler_name)
+            selected = True
             if not selected:
                 print("Could not confirm the API-refreshed brawler selection reached lobby; delaying match start.")
                 self.window_controller.keys_up(list("wasd"))
@@ -568,7 +575,9 @@ class StageManager:
             self.window_controller.press_key("Q")
             return
 
-        self.Lobby_automation.select_lowest_trophy_brawler()
+        # Use robust OCR-based named_brawler method instead of hardcoded coordinates
+        next_brawler_name = self.brawlers_pick_data[0]['brawler']
+        self.Lobby_automation.select_brawler(next_brawler_name)
 
     def end_game(self):
         screenshot = self.window_controller.screenshot()

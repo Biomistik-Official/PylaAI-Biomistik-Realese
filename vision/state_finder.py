@@ -148,6 +148,20 @@ def is_in_shop(image) -> bool:
 def is_in_brawler_selection(image) -> bool:
     return is_template_in_region(image, states_path + 'brawler_menu_task.png', region_data["brawler_menu_task"])
 
+def is_brawler_detail_card_open(image) -> bool:
+    import cv2, numpy as np
+    # Convert RGB image (as returned by screenshot) to BGR for consistent HSV bounds
+    bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
+    yellow_mask = cv2.inRange(
+        hsv,
+        np.array((15, 90, 120), dtype=np.uint8),
+        np.array((42, 255, 255), dtype=np.uint8),
+    )
+    h, w = bgr.shape[:2]
+    bottom_left = yellow_mask[int(h*0.8):h, 0:int(w*0.3)]
+    yellow_ratio = cv2.countNonZero(bottom_left) / (bottom_left.shape[0] * bottom_left.shape[1])
+    return yellow_ratio > 0.05
 
 def is_in_offer_popup(image) -> bool:
     return is_template_in_region(image, states_path + 'close_popup.png', region_data["close_popup"])
