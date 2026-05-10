@@ -158,7 +158,7 @@ class LobbyAutomation:
                         time.sleep(0.5)
                         wr = self.window_controller.width_ratio
                         hr = self.window_controller.height_ratio
-                        self.window_controller.swipe(int(1760 * wr), int(900 * hr), int(1760 * wr), int(800 * hr), duration=0.8)
+                        self.window_controller.swipe(int(1760 * wr), int(850 * hr), int(1760 * wr), int(750 * hr), duration=0.8)
                         time.sleep(1.0)
                         continue
 
@@ -171,11 +171,11 @@ class LobbyAutomation:
             if c == 0:
                 wr = self.window_controller.width_ratio
                 hr = self.window_controller.height_ratio
-                self.window_controller.swipe(int(1760 * wr), int(900 * hr), int(1760 * wr), int(850 * hr), duration=0.8)
+                self.window_controller.swipe(int(1760 * wr), int(850 * hr), int(1760 * wr), int(800 * hr), duration=0.8)
                 c += 1
                 continue
 
-            self.window_controller.swipe(int(1760 * wr), int(900 * hr), int(1760 * wr), int(650 * hr), duration=0.8)
+            self.window_controller.swipe(int(1760 * wr), int(850 * hr), int(1760 * wr), int(700 * hr), duration=0.8)
             time.sleep(1)
         if not found_brawler:
             print(f"WARNING: Brawler '{brawler}' was not found after 50 scroll attempts. "
