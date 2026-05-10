@@ -203,23 +203,26 @@ class LobbyAutomation:
         while time.time() < deadline:
             screenshot = self.window_controller.screenshot()
             
-            # Check if the Brawler Detail Card is open by looking for the yellow SELECT button
-            if is_brawler_detail_card_open(screenshot):
-                self.window_controller.device.shell(f"input tap {int(260 * wr)} {int(991 * hr)}")
-                time.sleep(0.7)
-                continue
-
             try:
                 state = get_state(screenshot)
             except Exception as e:
                 print(f"Could not verify lobby after brawler selection: {e}")
                 return False
                 
+            # If we are already in the lobby, exit immediately!
+            # Do this BEFORE checking for the yellow button, because the lobby 
+            # ALSO has a yellow button in the bottom left (the Brawl Pass!).
             if state == "lobby":
                 return True
+            
+            # Check if the Brawler Detail Card is open by looking for the yellow SELECT button
+            if is_brawler_detail_card_open(screenshot):
+                self.window_controller.device.shell(f"input tap {int(260 * wr)} {int(991 * hr)}")
+                time.sleep(0.7)
+                continue
+
             if state == "brawler_selection":
                 # Still in brawler list (maybe transition lagging or card closed).
-                # Do NOT click 260, 991 here because it hits the Brawl Pass.
                 pass
             elif state == "match":
                 # Immediately after selecting a brawler, "match" usually means
