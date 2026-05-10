@@ -46,9 +46,9 @@ class LobbyAutomation:
         general_config = load_toml_as_dict("cfg/general_config.toml")
         debug_enabled = str(general_config.get("super_debug", "no")).lower() in ("yes", "true", "1")
         try:
-            ocr_scale = float(general_config.get("ocr_scale_down_factor", 0.65))
+            ocr_scale = float(general_config.get("ocr_scale_down_factor", 0.85))
         except (TypeError, ValueError):
-            ocr_scale = 0.65
+            ocr_scale = 0.85
         ocr_scale = max(0.35, min(1.0, ocr_scale))
         target_key = self.normalize_ocr_name(brawler)
 
@@ -65,6 +65,8 @@ class LobbyAutomation:
                 (int(screenshot_full.shape[1] * ocr_scale), int(screenshot_full.shape[0] * ocr_scale)),
                 interpolation=cv2.INTER_AREA,
             )
+            if len(screenshot.shape) == 3:
+                screenshot = cv2.cvtColor(screenshot, cv2.COLOR_RGB2GRAY)
 
             if debug_enabled: print("extracting text on current screen...")
             results = extract_text_and_positions(screenshot)
@@ -120,6 +122,7 @@ class LobbyAutomation:
                     int(full_h * 0.05):int(full_h * 0.22),
                     0:verify_screenshot.shape[1],
                 ]
+                card_crop = cv2.resize(card_crop, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
                 try:
                     card_texts = extract_text_strings(card_crop)
                 except Exception:
@@ -252,15 +255,15 @@ class LobbyAutomation:
             return True
         if len(target_name) >= 4 and (target_name in detected_name or detected_name in target_name):
             return True
-        limit = 2 if len(target_name) <= 5 else 4
+        limit = 1 if len(target_name) <= 5 else 2
         if cls.bounded_edit_distance(detected_name, target_name, limit) <= limit:
             return True
-        return SequenceMatcher(None, detected_name, target_name).ratio() >= 0.65
+        return SequenceMatcher(None, detected_name, target_name).ratio() >= 0.84
 
     @classmethod
     def name_match_score(cls, detected_name: str, target_name: str) -> float:
         if detected_name == target_name:
             return 2.0
         ratio = SequenceMatcher(None, detected_name, target_name).ratio()
-        distance = cls.bounded_edit_distance(detected_name, target_name, 5)
+        distance = cls.bounded_edit_distance(detected_name, target_name, 3)
         return ratio - (distance * 0.05)

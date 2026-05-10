@@ -574,7 +574,7 @@ class SelectBrawler:
                 if score > best_score:
                     best_score = score
                     best_brawler = brawler
-        return best_brawler if best_score >= 0.55 else None
+        return best_brawler if best_score >= 0.72 else None
 
     @staticmethod
     def _move_brawler_to_front(data, selected_brawler):
@@ -612,6 +612,7 @@ class SelectBrawler:
                 int(height * 0.16):int(height * 0.56),
                 int(width * 0.10):int(width * 0.36),
             ]
+            crop = cv2.resize(crop, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
             try:
                 texts = extract_text_strings(crop)
             except Exception as e:
