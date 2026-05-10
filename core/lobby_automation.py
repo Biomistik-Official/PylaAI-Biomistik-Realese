@@ -166,8 +166,11 @@ class LobbyAutomation:
         # Switch to exact ADB taps instead of scrcpy clicks to ensure 100% precision
         # matching the select_brawler.py logic.
         size = self.window_controller.device.window_size()
-        wr = size.width / 1920
-        hr = size.height / 1080
+        w, h = size.width, size.height
+        if w < h:
+            w, h = h, w
+        wr = w / 1920
+        hr = h / 1080
 
         def tap(x, y, wait=0.6):
             self.window_controller.device.shell(f"input tap {int(x * wr)} {int(y * hr)}")
@@ -196,8 +199,11 @@ class LobbyAutomation:
         from vision.state_finder import get_state, is_brawler_detail_card_open
         
         size = self.window_controller.device.window_size()
-        wr = size.width / 1920
-        hr = size.height / 1080
+        w, h = size.width, size.height
+        if w < h:
+            w, h = h, w
+        wr = w / 1920
+        hr = h / 1080
         
         deadline = time.time() + timeout
         while time.time() < deadline:
