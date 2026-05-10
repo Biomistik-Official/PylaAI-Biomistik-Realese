@@ -200,7 +200,7 @@ def get_matchmaking_exit_button_center(image):
             image,
             template_path,
             region,
-            threshold=0.82,
+            threshold=0.65,
     ):
         return None
 
@@ -390,13 +390,14 @@ def is_starr_nova_info_screen(image):
 
 
 def is_lobby_hud_visible(image, required_anchors=3) -> bool:
+    if not is_lobby_play_button_visible(image):
+        return False
     anchors = [
-        is_lobby_play_button_visible(image),
         is_lobby_currency_bar_visible(image),
         is_lobby_quests_button_visible(image),
         is_lobby_menu_button_visible(image),
     ]
-    return sum(1 for value in anchors if value) >= required_anchors
+    return sum(1 for value in anchors if value) >= (required_anchors - 1)
 
 
 def is_lobby_play_button_visible(image) -> bool:
