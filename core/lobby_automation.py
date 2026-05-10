@@ -137,30 +137,6 @@ class LobbyAutomation:
                     click_y = max(0, min(full_h - 1, click_y))
                     self.window_controller.click(click_x, click_y)
                     time.sleep(1.0)
-                    
-                    verify_screenshot2 = self.window_controller.screenshot()
-                    card_crop2 = verify_screenshot2[
-                        int(full_h * 0.05):int(full_h * 0.22),
-                        0:verify_screenshot2.shape[1],
-                    ]
-                    try:
-                        card_texts2 = extract_text_strings(card_crop2)
-                    except Exception:
-                        card_texts2 = []
-                    card_name_match2 = any(
-                        self.names_match(self.normalize_ocr_name(text), target_key)
-                        for text in card_texts2
-                    ) if card_texts2 else True
-                    
-                    if not card_name_match2:
-                        print(f"Second tap also failed to open '{brawler}'. Scrolling slightly and retrying.")
-                        self.press_back()
-                        time.sleep(0.5)
-                        wr = self.window_controller.width_ratio
-                        hr = self.window_controller.height_ratio
-                        self.window_controller.swipe(int(1760 * wr), int(850 * hr), int(1760 * wr), int(750 * hr), duration=0.8)
-                        time.sleep(1.0)
-                        continue
 
                 select_x, select_y = self.coords_cfg['lobby']['select_btn'][0], self.coords_cfg['lobby']['select_btn'][1]
                 self.window_controller.click(select_x, select_y, already_include_ratio=False)
@@ -171,11 +147,11 @@ class LobbyAutomation:
             if c == 0:
                 wr = self.window_controller.width_ratio
                 hr = self.window_controller.height_ratio
-                self.window_controller.swipe(int(1760 * wr), int(850 * hr), int(1760 * wr), int(800 * hr), duration=0.8)
+                self.window_controller.swipe(int(1760 * wr), int(900 * hr), int(1760 * wr), int(850 * hr), duration=0.8)
                 c += 1
                 continue
 
-            self.window_controller.swipe(int(1760 * wr), int(850 * hr), int(1760 * wr), int(700 * hr), duration=0.8)
+            self.window_controller.swipe(int(1760 * wr), int(900 * hr), int(1760 * wr), int(650 * hr), duration=0.8)
             time.sleep(1)
         if not found_brawler:
             print(f"WARNING: Brawler '{brawler}' was not found after 50 scroll attempts. "
@@ -276,15 +252,15 @@ class LobbyAutomation:
             return True
         if len(target_name) >= 4 and (target_name in detected_name or detected_name in target_name):
             return True
-        limit = 1 if len(target_name) <= 5 else 2
+        limit = 2 if len(target_name) <= 5 else 4
         if cls.bounded_edit_distance(detected_name, target_name, limit) <= limit:
             return True
-        return SequenceMatcher(None, detected_name, target_name).ratio() >= 0.84
+        return SequenceMatcher(None, detected_name, target_name).ratio() >= 0.65
 
     @classmethod
     def name_match_score(cls, detected_name: str, target_name: str) -> float:
         if detected_name == target_name:
             return 2.0
         ratio = SequenceMatcher(None, detected_name, target_name).ratio()
-        distance = cls.bounded_edit_distance(detected_name, target_name, 3)
+        distance = cls.bounded_edit_distance(detected_name, target_name, 5)
         return ratio - (distance * 0.05)

@@ -574,7 +574,7 @@ class SelectBrawler:
                 if score > best_score:
                     best_score = score
                     best_brawler = brawler
-        return best_brawler if best_score >= 0.72 else None
+        return best_brawler if best_score >= 0.55 else None
 
     @staticmethod
     def _move_brawler_to_front(data, selected_brawler):
