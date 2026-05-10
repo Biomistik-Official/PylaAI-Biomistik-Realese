@@ -163,11 +163,14 @@ class LobbyAutomation:
             raise ValueError(f"Brawler '{brawler}' could not be found in the brawler selection menu.")
 
     def select_lowest_trophy_brawler(self):
-        wr = self.window_controller.width_ratio
-        hr = self.window_controller.height_ratio
+        # Switch to exact ADB taps instead of scrcpy clicks to ensure 100% precision
+        # matching the select_brawler.py logic.
+        size = self.window_controller.device.window_size()
+        wr = size.width / 1920
+        hr = size.height / 1080
 
         def tap(x, y, wait=0.6):
-            self.window_controller.click(int(x * wr), int(y * hr))
+            self.window_controller.device.shell(f"input tap {int(x * wr)} {int(y * hr)}")
             time.sleep(wait)
 
         print("Selecting next brawler by sorting lowest trophies.")
@@ -191,16 +194,18 @@ class LobbyAutomation:
 
     def ensure_lobby_after_selection(self, timeout=6.0):
         from vision.state_finder import get_state, is_brawler_detail_card_open
+        
+        size = self.window_controller.device.window_size()
+        wr = size.width / 1920
+        hr = size.height / 1080
+        
         deadline = time.time() + timeout
         while time.time() < deadline:
             screenshot = self.window_controller.screenshot()
             
             # Check if the Brawler Detail Card is open by looking for the yellow SELECT button
             if is_brawler_detail_card_open(screenshot):
-                self.window_controller.click(
-                    int(260 * self.window_controller.width_ratio),
-                    int(991 * self.window_controller.height_ratio),
-                )
+                self.window_controller.device.shell(f"input tap {int(260 * wr)} {int(991 * hr)}")
                 time.sleep(0.7)
                 continue
 
