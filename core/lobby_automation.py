@@ -178,22 +178,19 @@ class LobbyAutomation:
         tap(1210, 45, 0.6)   # sort dropdown
         tap(1210, 426, 1.0)  # Least Trophies
         tap(422, 359, 1.0)   # first brawler card after sorting
+        tap(260, 991, 1.0)   # Select
         
-        # We NO LONGER tap SELECT here!
-        # If we tap now and the UI is lagging, we hit the Brawl Pass in the brawler list.
-        # ensure_lobby_after_selection will wait until the brawler card opens ("shop" state) 
-        # and THEN it will safely tap SELECT.
         if self.ensure_lobby_after_selection():
             return True
 
         print("Lowest-trophy brawler selection did not return to lobby; trying one recovery pass.")
-        # If it failed, we are probably still in the brawler list (maybe the first tap missed).
-        # Tap the first brawler card again, and wait for the lobby.
-        tap(422, 359, 1.0)
+        self.press_back()
+        time.sleep(0.8)
+        tap(260, 991, 1.0)   # Select again if the brawler details screen is still open
         return self.ensure_lobby_after_selection()
 
     def ensure_lobby_after_selection(self, timeout=6.0):
-        from vision.state_finder import get_state, is_brawler_detail_card_open
+        from vision.state_finder import get_state
         
         size = self.window_controller.device.window_size()
         wr = size.width / 1920
@@ -209,21 +206,14 @@ class LobbyAutomation:
                 print(f"Could not verify lobby after brawler selection: {e}")
                 return False
                 
-            # If we are already in the lobby, exit immediately!
-            # Do this BEFORE checking for the yellow button, because the lobby 
-            # ALSO has a yellow button in the bottom left (the Brawl Pass!).
             if state == "lobby":
                 return True
-            
-            # Check if the Brawler Detail Card is open by looking for the yellow SELECT button
-            if is_brawler_detail_card_open(screenshot):
-                self.window_controller.device.shell(f"input tap {int(260 * wr)} {int(991 * hr)}")
-                time.sleep(0.7)
-                continue
-
             if state == "brawler_selection":
-                # Still in brawler list (maybe transition lagging or card closed).
-                pass
+                # The card opened but Select may not have registered yet.
+                self.window_controller.device.shell(f"input tap {int(260 * wr)} {int(991 * hr)}")
+            elif state == "shop":
+                # Sometimes the Brawler Detail card is recognized as shop.
+                self.window_controller.device.shell(f"input tap {int(260 * wr)} {int(991 * hr)}")
             elif state == "match":
                 # Immediately after selecting a brawler, "match" usually means
                 # an unrecognized brawler details/stats screen, not a real game.
