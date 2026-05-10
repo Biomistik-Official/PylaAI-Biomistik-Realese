@@ -175,14 +175,18 @@ class LobbyAutomation:
         tap(1210, 45, 0.6)   # sort dropdown
         tap(1210, 426, 1.0)  # Least Trophies
         tap(422, 359, 1.0)   # first brawler card after sorting
-        tap(260, 991, 1.0)   # Select
+        
+        # We NO LONGER tap SELECT here!
+        # If we tap now and the UI is lagging, we hit the Brawl Pass in the brawler list.
+        # ensure_lobby_after_selection will wait until the brawler card opens ("shop" state) 
+        # and THEN it will safely tap SELECT.
         if self.ensure_lobby_after_selection():
             return True
 
         print("Lowest-trophy brawler selection did not return to lobby; trying one recovery pass.")
-        self.press_back()
-        time.sleep(0.8)
-        tap(260, 991, 1.0)   # Select again if the brawler details screen is still open
+        # If it failed, we are probably still in the brawler list (maybe the first tap missed).
+        # Tap the first brawler card again, and wait for the lobby.
+        tap(422, 359, 1.0)
         return self.ensure_lobby_after_selection()
 
     def ensure_lobby_after_selection(self, timeout=6.0):
