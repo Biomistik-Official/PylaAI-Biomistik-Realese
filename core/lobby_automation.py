@@ -163,71 +163,45 @@ class LobbyAutomation:
             raise ValueError(f"Brawler '{brawler}' could not be found in the brawler selection menu.")
 
     def select_lowest_trophy_brawler(self):
-        print("Selecting next brawler by sorting lowest trophies... (Scrcpy Robust Rewrite)")
-        time.sleep(2.0)
-        
-        # Use scrcpy's native video frame dimensions. This perfectly bypasses ANY
-        # emulator letterboxing, black bars, or portrait/landscape ADB rotation bugs.
-        frame = self.window_controller.device_frame
-        height, width = frame.shape[:2]
+        wr = self.window_controller.width_ratio
+        hr = self.window_controller.height_ratio
 
-        def tap_pct(x_pct, y_pct, wait=1.0):
-            # scrcpy click() already handles the exact injection into the Android display
-            x = int(width * x_pct)
-            y = int(height * y_pct)
-            # Use already_include_ratio=True because we are passing absolute frame coordinates
-            self.window_controller.click(x, y, delay=0.05, already_include_ratio=True)
+        def tap(x, y, wait=0.6):
+            self.window_controller.click(int(x * wr), int(y * hr))
             time.sleep(wait)
 
-        # 1. Open Brawler List (Tap center of lobby to avoid UI side-banner overlaps)
-        tap_pct(0.500, 0.500, 1.5)
-        
-        # 2. Tap Sort Dropdown (Top right)
-        tap_pct(0.630, 0.041, 0.8)
-        
-        # 3. Select 'Least Trophies' (Middle right dropdown option)
-        tap_pct(0.630, 0.394, 1.2)
-        
-        # 4. Tap the first brawler card after sorting (Left middle)
-        # Added a massive 3.0s delay to guarantee the Brawler Detail card is fully rendered
-        tap_pct(0.260, 0.370, 3.0)
-        
-        # 5. Tap the SELECT button (Bottom left)
-        tap_pct(0.135, 0.917, 1.5)
-        
+        print("Selecting next brawler by sorting lowest trophies.")
+        tap(128, 500, 1.4)   # left Brawlers button in lobby
+        tap(1210, 45, 0.6)   # sort dropdown
+        tap(1210, 426, 1.0)  # Least Trophies
+        tap(422, 359, 3.0)   # first brawler card after sorting (large delay for UI load)
+        tap(260, 991, 1.0)   # Select
         if self.ensure_lobby_after_selection():
             return True
 
         print("Lowest-trophy brawler selection did not return to lobby; trying one recovery pass.")
         self.press_back()
-        time.sleep(1.0)
-        # If we were stuck on the Brawler list, BACK takes us to the lobby.
-        # If we were stuck on the Detail card, BACK takes us to the Brawler list.
-        # It's safer to just return False and let play.py handle the retry from Lobby.
-        return False
+        time.sleep(0.8)
+        tap(260, 991, 1.0)   # Select again if the brawler details screen is still open
+        return self.ensure_lobby_after_selection()
 
-    def ensure_lobby_after_selection(self, timeout=8.0):
-        from vision.state_finder import get_state
-        
+    def ensure_lobby_after_selection(self, timeout=6.0):
         deadline = time.time() + timeout
         while time.time() < deadline:
-            screenshot = self.window_controller.screenshot()
-            
             try:
-                state = get_state(screenshot)
+                state = get_state(self.window_controller.screenshot())
             except Exception as e:
                 print(f"Could not verify lobby after brawler selection: {e}")
                 return False
-                
             if state == "lobby":
                 return True
-            
-            # We removed the continuous SELECT tapping here because state_finder 
-            # sometimes misidentifies the Brawler List as "shop" or "brawler_selection",
-            # causing it to tap the bottom-left corner and hit the Brawl Pass.
-            # We now rely entirely on the blind tap with a long delay.
-            
-            if state == "match":
+            if state == "brawler_selection":
+                # The card opened but Select may not have registered yet.
+                self.window_controller.click(
+                    int(260 * self.window_controller.width_ratio),
+                    int(991 * self.window_controller.height_ratio),
+                )
+            elif state == "match":
                 # Immediately after selecting a brawler, "match" usually means
                 # an unrecognized brawler details/stats screen, not a real game.
                 self.press_back()
