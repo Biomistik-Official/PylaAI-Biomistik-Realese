@@ -584,13 +584,12 @@ class Hub:
             _lookup_btn.configure(state="disabled", text="...")
             _status_lbl.configure(text="Looking up...", text_color="#8e8e93")
 
+            result_container = {"name": None, "tag": None, "err": None, "done": False}
+
             def _fetch():
                 try:
                     from common.utils import fetch_brawl_stars_player, load_brawl_stars_api_config, load_toml_as_dict, save_dict_as_toml, resolve_instance_path
                     cfg_path = resolve_instance_path("cfg/brawl_stars_api.toml")
-                    # Try to auto-refresh the token; silently fall back to
-                    # the existing token if refresh fails (network error,
-                    # missing credentials, etc.) so Lookup still works.
                     try:
                         api_cfg = load_brawl_stars_api_config(cfg_path)
                     except Exception:
@@ -599,12 +598,20 @@ class Hub:
                     data = fetch_brawl_stars_player(token, tag_raw, timeout=10)
                     name = data.get("name", "Unknown")
                     tag_ret = data.get("tag", tag_raw)
-                    # Save tag to instance config
                     api_cfg["player_tag"] = tag_ret
                     save_dict_as_toml(api_cfg, cfg_path)
-                    card4.after(0, lambda: _apply_result(name, tag_ret, None))
+                    result_container["name"] = name
+                    result_container["tag"] = tag_ret
                 except Exception as exc:
-                    card4.after(0, lambda e=exc: _apply_result(None, None, str(e)))
+                    result_container["err"] = str(exc)
+                finally:
+                    result_container["done"] = True
+
+            def _check():
+                if result_container["done"]:
+                    _apply_result(result_container["name"], result_container["tag"], result_container["err"])
+                else:
+                    card4.after(100, _check)
 
             def _apply_result(name, tag, err):
                 _lookup_btn.configure(state="normal", text="Lookup")
@@ -616,6 +623,7 @@ class Hub:
                     _status_lbl.configure(text="Account loaded ✓", text_color="#30d158")
 
             threading.Thread(target=_fetch, daemon=True).start()
+            _check()
 
         # Auto-load if tag already saved
         def _auto_load():
