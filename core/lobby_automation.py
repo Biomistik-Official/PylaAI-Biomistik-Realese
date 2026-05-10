@@ -165,36 +165,33 @@ class LobbyAutomation:
     def select_lowest_trophy_brawler(self):
         # Switch to exact ADB taps instead of scrcpy clicks to ensure 100% precision
         # matching the select_brawler.py logic.
-        size = self.window_controller.device.window_size()
-        wr = size.width / 1920
-        hr = size.height / 1080
+        wr = self.window_controller.width_ratio
+        hr = self.window_controller.height_ratio
 
         def tap(x, y, wait=0.6):
-            self.window_controller.device.shell(f"input tap {int(x * wr)} {int(y * hr)}")
+            self.window_controller.click(int(x * wr), int(y * hr))
             time.sleep(wait)
 
         print("Selecting next brawler by sorting lowest trophies.")
         tap(128, 500, 1.4)   # left Brawlers button in lobby
         tap(1210, 45, 0.6)   # sort dropdown
         tap(1210, 426, 1.0)  # Least Trophies
-        tap(422, 359, 1.0)   # first brawler card after sorting
-        tap(260, 991, 1.0)   # Select
+        tap(422, 359, 2.5)   # first brawler card after sorting (long wait for transition!)
+        tap(260, 991, 1.0)   # Select button
         
         if self.ensure_lobby_after_selection():
             return True
 
         print("Lowest-trophy brawler selection did not return to lobby; trying one recovery pass.")
         self.press_back()
-        time.sleep(0.8)
-        tap(260, 991, 1.0)   # Select again if the brawler details screen is still open
-        return self.ensure_lobby_after_selection()
+        time.sleep(1.0)
+        # If we were stuck on the Brawler list, BACK takes us to the lobby.
+        # If we were stuck on the Detail card, BACK takes us to the Brawler list.
+        # It's safer to just return False and let play.py handle the retry from Lobby.
+        return False
 
-    def ensure_lobby_after_selection(self, timeout=6.0):
+    def ensure_lobby_after_selection(self, timeout=8.0):
         from vision.state_finder import get_state
-        
-        size = self.window_controller.device.window_size()
-        wr = size.width / 1920
-        hr = size.height / 1080
         
         deadline = time.time() + timeout
         while time.time() < deadline:
@@ -208,13 +205,13 @@ class LobbyAutomation:
                 
             if state == "lobby":
                 return True
-            if state == "brawler_selection":
-                # The card opened but Select may not have registered yet.
-                self.window_controller.device.shell(f"input tap {int(260 * wr)} {int(991 * hr)}")
-            elif state == "shop":
-                # Sometimes the Brawler Detail card is recognized as shop.
-                self.window_controller.device.shell(f"input tap {int(260 * wr)} {int(991 * hr)}")
-            elif state == "match":
+            
+            # We removed the continuous SELECT tapping here because state_finder 
+            # sometimes misidentifies the Brawler List as "shop" or "brawler_selection",
+            # causing it to tap the bottom-left corner and hit the Brawl Pass.
+            # We now rely entirely on the blind tap with a long delay.
+            
+            if state == "match":
                 # Immediately after selecting a brawler, "match" usually means
                 # an unrecognized brawler details/stats screen, not a real game.
                 self.press_back()
