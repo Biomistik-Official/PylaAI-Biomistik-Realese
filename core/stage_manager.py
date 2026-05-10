@@ -12,7 +12,6 @@ from vision.state_finder import (
     find_game_result,
     is_in_prestige_reward,
     get_prestige_next_button_center,
-    get_team_invite_reject_button_center,
     get_star_drop_type,
     get_skin_reward_continue_button_center,
 )
@@ -63,7 +62,6 @@ class StageManager:
         self.last_recorded_result_time = 0.0
         self.last_recorded_result = None
         self.active_end_result = None
-        self.last_team_invite_reject_time = 0.0
         self.stop_after_post_match_rewards = False
         self.completion_notification_sent = False
         time_thresholds = load_toml_as_dict("./cfg/time_tresholds.toml")
@@ -85,6 +83,8 @@ class StageManager:
             'end_4th': self.end_game,
             'lobby': self.start_game,
             'star_drop': self.handle_star_drop,
+            'daily_star_drop': self.handle_star_drop,
+            'nova_star_drop': self.handle_star_drop,
             'prestige_reward': self.handle_prestige_reward,
             'trophy_reward': lambda: self.window_controller.press_key("Q"),
             'reward_unlock': self.handle_reward_unlock,
@@ -231,7 +231,7 @@ class StageManager:
             normalize_brawler_name(brawler.get("name", "")): int(brawler.get("trophies", 0))
             for brawler in player_data.get("brawlers", [])
         }
-        target = self._number_or_default(self.brawlers_pick_data[0].get("push_until", 1000), 1000)
+        default_target = self._number_or_default(self.brawlers_pick_data[0].get("push_until", 1000), 1000)
         changed = False
         refreshed_rows = []
         for row in self.brawlers_pick_data:
@@ -248,7 +248,8 @@ class StageManager:
                 if refreshed_row.get("trophies") != api_trophies:
                     refreshed_row["trophies"] = api_trophies
                     changed = True
-            if self._number_or_default(refreshed_row.get("trophies", 0), 0) < target:
+            row_target = self._number_or_default(refreshed_row.get("push_until", default_target), default_target)
+            if self._number_or_default(refreshed_row.get("trophies", 0), 0) < row_target:
                 refreshed_rows.append(refreshed_row)
 
         current_row = next(
@@ -348,6 +349,7 @@ class StageManager:
         if type_of_push not in values:
             type_of_push = "trophies"
         value = values[type_of_push]
+        saved_value = self._number_or_default(self.brawlers_pick_data[0].get(type_of_push, 0), 0)
         if value == "" and type_of_push == "wins":
             value = 0
         push_current_brawler_till = self.brawlers_pick_data[0]['push_until']
@@ -355,6 +357,12 @@ class StageManager:
             push_current_brawler_till = 300
         if push_current_brawler_till == "" and type_of_push == "trophies":
             push_current_brawler_till = 1000
+        push_current_brawler_till = self._number_or_default(
+            push_current_brawler_till,
+            1000 if type_of_push == "trophies" else 300,
+        )
+        value = self._number_or_default(value, 0)
+        value = max(value, saved_value)
 
         if value >= push_current_brawler_till:
             if len(self.brawlers_pick_data) <= 1:
@@ -504,22 +512,31 @@ class StageManager:
         if drop_type is None:
             return
 
-        print(f"{drop_type.title()} star drop detected; opening by template.")
+        label = {
+            "daily_hold": "Daily Wins hold",
+            "starr_nova_hold": "Starr Nova hold",
+            "angelic": "Angelic",
+            "demonic": "Demonic",
+            "standard": "Standard",
+        }.get(drop_type, str(drop_type).replace("_", " ").title())
+        print(f"{label} star drop detected; opening by template.")
         self.window_controller.keys_up(list("wasd"))
         current_height, current_width = screenshot.shape[:2]
         width_ratio = current_width / 1920
         height_ratio = current_height / 1080
         x = int(965 * width_ratio)
         y = int(525 * height_ratio)
-        if drop_type in ("angelic", "demonic"):
-            for _ in range(3):
-                self.window_controller.click(x, y, delay=0.45)
-                time.sleep(0.2)
+        if drop_type in ("angelic", "demonic", "daily_hold", "starr_nova_hold"):
+            for _ in range(2):
+                if hasattr(self.window_controller, "long_press"):
+                    self.window_controller.long_press(x, y, duration=1.15)
+                else:
+                    self.window_controller.click(x, y, delay=1.15)
+                time.sleep(0.25)
         else:
-            # Click 12 times to handle long Legendary/Mythic drop animations
-            for _ in range(12):
-                self.window_controller.click(x, y, delay=0.05)
-                time.sleep(0.1)
+            for _ in range(5):
+                self.window_controller.click(x, y, delay=0.04)
+                time.sleep(0.08)
 
     def handle_reward_unlock(self):
         screenshot = self.window_controller.screenshot()
@@ -626,6 +643,11 @@ class StageManager:
                     push_current_brawler_till = 300
                 if push_current_brawler_till == "" and type_to_push == "trophies":
                     push_current_brawler_till = 1000
+                push_current_brawler_till = self._number_or_default(
+                    push_current_brawler_till,
+                    1000 if type_to_push == "trophies" else 300,
+                )
+                value = self._number_or_default(value, 0)
 
                 if value >= push_current_brawler_till:
                     if len(self.brawlers_pick_data) <= 1:
@@ -644,6 +666,13 @@ class StageManager:
                                 }),
                             )
                             self.completion_notification_sent = True
+                    else:
+                        print(
+                            "Brawler reached required trophies/wins. "
+                            "Will switch brawler as soon as lobby is reached.",
+                            value,
+                            push_current_brawler_till,
+                        )
             
             # Keep pressing the dismiss key on every iteration until the
             # end-of-match screens give way. One press is rarely enough in
@@ -659,21 +688,12 @@ class StageManager:
         print("Game has ended", current_state)
 
     def quit_shop(self):
+        if hasattr(self.window_controller, "android_back") and self.window_controller.android_back():
+            return
         self.window_controller.click(100*self.window_controller.width_ratio, 60*self.window_controller.height_ratio)
 
     def close_pop_up(self):
         screenshot = self.window_controller.screenshot()
-        team_invite_reject = get_team_invite_reject_button_center(screenshot, image_is_rgb=True)
-        if team_invite_reject:
-            now = time.time()
-            if now - self.last_team_invite_reject_time < 0.6:
-                return
-            self.last_team_invite_reject_time = now
-            print("Team invite popup detected; rejecting invite.")
-            self.window_controller.keys_up(list("wasd"))
-            self.window_controller.click(*team_invite_reject, delay=0.08)
-            self.tap_with_adb_fallback(*team_invite_reject, screenshot_shape=screenshot.shape)
-            return
         if self.close_popup_icon is None:
             self.close_popup_icon = load_image("images/states/close_popup.png", self.window_controller.scale_factor)
         popup_location = find_template_center(screenshot, self.close_popup_icon)

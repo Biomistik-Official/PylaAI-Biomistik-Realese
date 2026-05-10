@@ -4,16 +4,21 @@ import time
 import cv2
 import numpy as np
 
-from typization import BrawlerName
 from vision.state_finder import get_state
-from common.utils import extract_text_and_positions, count_hsv_pixels, load_toml_as_dict, find_template_center, clear_toml_cache
+from common.utils import (
+    extract_text_and_positions,
+    extract_text_strings,
+    count_hsv_pixels,
+    load_toml_as_dict,
+    find_template_center,
+    resolve_brawler_name_alias,
+)
 
 debug = load_toml_as_dict("cfg/general_config.toml")['super_debug'] == "yes"
 gray_pixels_treshold = load_toml_as_dict("./cfg/bot_config.toml")['idle_pixels_minimum']
 class LobbyAutomation:
 
     def __init__(self, window_controller):
-        clear_toml_cache("./cfg/lobby_config.toml")
         self.coords_cfg = load_toml_as_dict("./cfg/lobby_config.toml")
         self.window_controller = window_controller
 
@@ -82,62 +87,55 @@ class LobbyAutomation:
                 _, detected_name, text_box = matches[0]
                 x, y = text_box['center']
                 click_x = int(x / ocr_scale)
-                y_offset = int(full_h * 0.088)  # ~95px at 1080p height
+                # EasyOCR returns the text label center, not the card/icon center.
+                # Tapping above the label avoids selecting the brawler in the row below.
+                y_offset = int(full_h * 0.088)
                 click_y = int((y / ocr_scale) - y_offset)
                 click_y = max(0, min(full_h - 1, click_y))
                 self.window_controller.click(click_x, click_y)
                 print(f"Found brawler {brawler} (OCR: {detected_name}) clicking icon at ({click_x}, {click_y}), y_offset={y_offset}")
                 time.sleep(1.0)
 
-                # Verify we opened the correct brawler's detail card
                 verify_screenshot = self.window_controller.screenshot()
                 verify_state = get_state(verify_screenshot)
-
-                # "shop" is what get_state returns for the brawler detail card — treat it same as brawler_selection
                 card_is_open = verify_state in ("brawler_selection", "shop")
-
-                # Double-check with OCR: if "select" / "selegt" visible → card is definitely open
                 if not card_is_open:
                     try:
-                        from common.utils import extract_text_strings
-                        _quick_texts = extract_text_strings(verify_screenshot)
-                        _select_words = {"select", "selegt", "selec", "selct", "selert"}
-                        if any(self.normalize_ocr_name(t) in _select_words for t in _quick_texts):
-                            card_is_open = True
-                            print(f"Card detected via OCR 'select' text (state was {verify_state}).")
+                        select_words = {"select", "selegt", "selec", "selct", "selert"}
+                        card_is_open = any(
+                            self.normalize_ocr_name(text) in select_words
+                            for text in extract_text_strings(verify_screenshot)
+                        )
+                        if card_is_open:
+                            print(f"Brawler card detected by SELECT text (state was {verify_state}).")
                     except Exception:
                         pass
 
                 if not card_is_open:
-                    # Tap didn't open a brawler card — likely missed; try again without scroll
-                    print(f"Brawler card did not open after tap (state={verify_state}); retrying tap.")
+                    print(f"Brawler card did not open after tap (state={verify_state}); retrying without scrolling.")
                     time.sleep(0.5)
                     continue
 
-                # Confirm the brawler name on the card with OCR
                 card_crop = verify_screenshot[
                     int(full_h * 0.05):int(full_h * 0.22),
-                    0:verify_screenshot.shape[1]
+                    0:verify_screenshot.shape[1],
                 ]
                 try:
-                    card_texts = []
-                    from common.utils import extract_text_strings
                     card_texts = extract_text_strings(card_crop)
                 except Exception:
-                    pass
+                    card_texts = []
                 card_name_match = any(
-                    self.names_match(self.normalize_ocr_name(t), target_key)
-                    for t in card_texts
-                ) if card_texts else True  # if OCR fails, trust the original match
+                    self.names_match(self.normalize_ocr_name(text), target_key)
+                    for text in card_texts
+                ) if card_texts else True
 
                 if not card_name_match:
                     print(f"Card OCR shows {card_texts} but expected '{brawler}'; re-tapping with adjusted offset.")
                     self.press_back()
                     time.sleep(0.5)
-                    # Try with a smaller offset (card was above the one we wanted)
-                    click_y2 = int((y / ocr_scale) - int(full_h * 0.04))
-                    click_y2 = max(0, min(full_h - 1, click_y2))
-                    self.window_controller.click(click_x, click_y2)
+                    click_y = int((y / ocr_scale) - int(full_h * 0.04))
+                    click_y = max(0, min(full_h - 1, click_y))
+                    self.window_controller.click(click_x, click_y)
                     time.sleep(1.0)
 
                 select_x, select_y = self.coords_cfg['lobby']['select_btn'][0], self.coords_cfg['lobby']['select_btn'][1]
@@ -145,18 +143,16 @@ class LobbyAutomation:
                 time.sleep(0.5)
                 print(f"Selected brawler {brawler}")
                 found_brawler = True
-                break   # <-- exit loop immediately, no scroll after this
+                break
+            if c == 0:
+                wr = self.window_controller.width_ratio
+                hr = self.window_controller.height_ratio
+                self.window_controller.swipe(int(1700 * wr), int(900 * hr), int(1700 * wr), int(850 * hr), duration=0.8)
+                c += 1
+                continue
 
-            else:
-                # Brawler not found on screen — scroll down and try again
-                if c == 0:
-                    # First iteration: small scroll to stabilise view
-                    self.window_controller.swipe(int(1760 * wr), int(900 * hr), int(1760 * wr), int(850 * hr), duration=0.8)
-                    c += 1
-                else:
-                    self.window_controller.swipe(int(1760 * wr), int(900 * hr), int(1760 * wr), int(650 * hr), duration=0.8)
-                time.sleep(1)
-
+            self.window_controller.swipe(int(1700 * wr), int(900 * hr), int(1700 * wr), int(650 * hr), duration=0.8)
+            time.sleep(1)
         if not found_brawler:
             print(f"WARNING: Brawler '{brawler}' was not found after 50 scroll attempts. "
                   f"The bot will continue with the currently selected brawler.")
@@ -223,14 +219,7 @@ class LobbyAutomation:
         or returns the original string
         """
 
-        matched_typo: str | None = {
-            'shey': BrawlerName.Shelly.value,
-            'shlly': BrawlerName.Shelly.value,
-            'larryslawrie': BrawlerName.Larry.value,
-            '[eon': BrawlerName.Leon.value,
-        }.get(potential_brawler_name, None)
-
-        return matched_typo or potential_brawler_name
+        return resolve_brawler_name_alias(potential_brawler_name)
 
     @staticmethod
     def normalize_ocr_name(value: str) -> str:
@@ -263,10 +252,10 @@ class LobbyAutomation:
             return True
         if len(target_name) >= 4 and (target_name in detected_name or detected_name in target_name):
             return True
-        limit = 2 if len(target_name) <= 5 else 3
+        limit = 1 if len(target_name) <= 5 else 2
         if cls.bounded_edit_distance(detected_name, target_name, limit) <= limit:
             return True
-        return SequenceMatcher(None, detected_name, target_name).ratio() >= 0.72
+        return SequenceMatcher(None, detected_name, target_name).ratio() >= 0.84
 
     @classmethod
     def name_match_score(cls, detected_name: str, target_name: str) -> float:
