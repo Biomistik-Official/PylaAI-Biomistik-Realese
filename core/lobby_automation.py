@@ -163,13 +163,12 @@ class LobbyAutomation:
             raise ValueError(f"Brawler '{brawler}' could not be found in the brawler selection menu.")
 
     def select_lowest_trophy_brawler(self):
-        # Switch to exact ADB taps instead of scrcpy clicks to ensure 100% precision
-        # matching the select_brawler.py logic.
-        wr = self.window_controller.width_ratio
-        hr = self.window_controller.height_ratio
+        size = self.window_controller.device.window_size()
+        wr = size.width / 1920
+        hr = size.height / 1080
 
         def tap(x, y, wait=0.6):
-            self.window_controller.click(int(x * wr), int(y * hr))
+            self.window_controller.device.shell(f"input tap {int(x * wr)} {int(y * hr)}")
             time.sleep(wait)
 
         print("Selecting next brawler by sorting lowest trophies.")
