@@ -163,21 +163,36 @@ class LobbyAutomation:
             raise ValueError(f"Brawler '{brawler}' could not be found in the brawler selection menu.")
 
     def select_lowest_trophy_brawler(self):
+        print("Selecting next brawler by sorting lowest trophies... (Robust Rewrite)")
+        time.sleep(2.0)
+        
+        # Get actual ADB reported dimensions to bypass any scrcpy/emulator scaling mismatches
         size = self.window_controller.device.window_size()
-        wr = size.width / 1920
-        hr = size.height / 1080
+        width = size.width
+        height = size.height
 
-        def tap(x, y, wait=0.6):
-            self.window_controller.device.shell(f"input tap {int(x * wr)} {int(y * hr)}")
+        def tap_pct(x_pct, y_pct, wait=1.0):
+            # Calculates exact ADB coordinates based on the reported screen size
+            x = int(width * x_pct)
+            y = int(height * y_pct)
+            self.window_controller.device.shell(f"input tap {x} {y}")
             time.sleep(wait)
 
-        print("Selecting next brawler by sorting lowest trophies. Waiting before start...")
-        time.sleep(2.0)
-        tap(960, 540, 1.4)   # center of the lobby (taps the brawler model to open brawler list)
-        tap(1210, 45, 0.6)   # sort dropdown
-        tap(1210, 426, 1.0)  # Least Trophies
-        tap(500, 400, 2.5)   # first brawler card after sorting (long wait for transition!)
-        tap(260, 991, 1.0)   # Select button
+        # 1. Open Brawler List (Tap center of lobby to avoid UI side-banner overlaps)
+        tap_pct(0.500, 0.500, 1.5)
+        
+        # 2. Tap Sort Dropdown (Top right)
+        tap_pct(0.630, 0.041, 0.8)
+        
+        # 3. Select 'Least Trophies' (Middle right dropdown option)
+        tap_pct(0.630, 0.394, 1.2)
+        
+        # 4. Tap the first brawler card after sorting (Left middle)
+        # Added a massive 3.0s delay to guarantee the Brawler Detail card is fully rendered
+        tap_pct(0.260, 0.370, 3.0)
+        
+        # 5. Tap the SELECT button (Bottom left)
+        tap_pct(0.135, 0.917, 1.5)
         
         if self.ensure_lobby_after_selection():
             return True
