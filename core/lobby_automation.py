@@ -190,26 +190,32 @@ class LobbyAutomation:
         return self.ensure_lobby_after_selection()
 
     def ensure_lobby_after_selection(self, timeout=6.0):
+        from vision.state_finder import get_state, is_brawler_detail_card_open
         deadline = time.time() + timeout
         while time.time() < deadline:
+            screenshot = self.window_controller.screenshot()
+            
+            # Check if the Brawler Detail Card is open by looking for the yellow SELECT button
+            if is_brawler_detail_card_open(screenshot):
+                self.window_controller.click(
+                    int(260 * self.window_controller.width_ratio),
+                    int(991 * self.window_controller.height_ratio),
+                )
+                time.sleep(0.7)
+                continue
+
             try:
-                state = get_state(self.window_controller.screenshot())
+                state = get_state(screenshot)
             except Exception as e:
                 print(f"Could not verify lobby after brawler selection: {e}")
                 return False
+                
             if state == "lobby":
                 return True
             if state == "brawler_selection":
                 # Still in brawler list (maybe transition lagging or card closed).
                 # Do NOT click 260, 991 here because it hits the Brawl Pass.
                 pass
-            elif state == "shop":
-                # The brawler detail card is evaluated as "shop" by state_finder.
-                # Tap the SELECT button.
-                self.window_controller.click(
-                    int(260 * self.window_controller.width_ratio),
-                    int(991 * self.window_controller.height_ratio),
-                )
             elif state == "match":
                 # Immediately after selecting a brawler, "match" usually means
                 # an unrecognized brawler details/stats screen, not a real game.
