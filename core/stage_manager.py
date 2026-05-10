@@ -207,8 +207,6 @@ class StageManager:
             return False
         if self.brawlers_pick_data[0].get("type", "trophies") != "trophies":
             return False
-        if not any(row.get("selection_method") == "lowest_trophies" for row in self.brawlers_pick_data):
-            return False
 
         old_front_brawler = self.brawlers_pick_data[0].get("brawler")
         try:
@@ -276,12 +274,10 @@ class StageManager:
 
         if refreshed_rows:
             refreshed_rows[0]["automatically_pick"] = False
-            refreshed_rows[0]["selection_method"] = "lowest_trophies"
             for row in refreshed_rows[1:]:
                 if row.get("automatically_pick") is not True:
                     changed = True
                 row["automatically_pick"] = True
-                row["selection_method"] = "lowest_trophies"
 
         old_order = [row.get("brawler") for row in self.brawlers_pick_data]
         new_order = [row.get("brawler") for row in refreshed_rows]
@@ -434,8 +430,14 @@ class StageManager:
                 print("Next brawler is in manual mode, waiting 10 seconds to let user switch.")
 
         elif self.push_all_needs_selection:
-            print("Push All queue changed from API; selecting the new lowest trophy brawler.")
-            selected = self.Lobby_automation.select_lowest_trophy_brawler()
+            print("Push All queue changed from API; selecting the new brawler.")
+            selection_method = self.brawlers_pick_data[0].get("selection_method", "named_brawler")
+            if selection_method == "lowest_trophies":
+                selected = self.Lobby_automation.select_lowest_trophy_brawler()
+            else:
+                next_brawler_name = self.brawlers_pick_data[0]['brawler']
+                self.Lobby_automation.select_brawler(next_brawler_name)
+                selected = True
             if not selected:
                 print("Could not confirm the API-refreshed brawler selection reached lobby; delaying match start.")
                 self.window_controller.keys_up(list("wasd"))
