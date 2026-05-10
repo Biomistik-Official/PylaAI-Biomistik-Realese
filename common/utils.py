@@ -275,6 +275,46 @@ def save_brawler_data(data):
 def normalize_brawler_name(name):
     return re.sub(r"[^a-z0-9]", "", str(name).lower())
 
+
+_brawler_name_aliases = None
+
+
+def load_brawler_name_aliases(file_path="cfg/names.json"):
+    global _brawler_name_aliases
+    if _brawler_name_aliases is not None:
+        return _brawler_name_aliases
+
+    aliases = {}
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            raw_aliases = json.load(f)
+    except FileNotFoundError:
+        raw_aliases = {}
+    except Exception as e:
+        print(f"Could not load brawler OCR aliases from {file_path}: {e}")
+        raw_aliases = {}
+
+    for canonical, values in raw_aliases.items():
+        canonical_key = normalize_brawler_name(canonical)
+        if not canonical_key:
+            continue
+        aliases[canonical_key] = canonical_key
+        if not isinstance(values, list):
+            values = [values]
+        for value in values:
+            alias_key = normalize_brawler_name(value)
+            if alias_key:
+                aliases[alias_key] = canonical_key
+
+    _brawler_name_aliases = aliases
+    return aliases
+
+
+def resolve_brawler_name_alias(name):
+    normalized = normalize_brawler_name(name)
+    return load_brawler_name_aliases().get(normalized, normalized)
+
+
 def get_config_player_tag(config):
     tag = str(config.get("player_tag", "")).strip()
     if tag and tag.upper() != "#YOURTAG":
