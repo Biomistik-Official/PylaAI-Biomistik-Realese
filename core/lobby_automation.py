@@ -163,27 +163,44 @@ class LobbyAutomation:
             raise ValueError(f"Brawler '{brawler}' could not be found in the brawler selection menu.")
 
     def select_lowest_trophy_brawler(self):
-        wr = self.window_controller.width_ratio
-        hr = self.window_controller.height_ratio
+        print("Selecting next brawler by sorting lowest trophies... (Robust ADB Percentage Logic)")
+        time.sleep(2.0)
+        
+        # Get actual ADB reported dimensions to bypass any scrcpy/emulator scaling mismatches
+        size = self.window_controller.device.window_size()
+        width = size.width
+        height = size.height
 
-        def tap(x, y, wait=0.6):
-            self.window_controller.click(int(x * wr), int(y * hr))
+        def tap_pct(x_pct, y_pct, wait=1.0):
+            # Calculates exact ADB coordinates based on the reported screen size
+            x = int(width * x_pct)
+            y = int(height * y_pct)
+            self.window_controller.device.shell(f"input tap {x} {y}")
             time.sleep(wait)
 
-        print("Selecting next brawler by sorting lowest trophies.")
-        tap(128, 500, 1.4)   # left Brawlers button in lobby
-        tap(1210, 45, 0.6)   # sort dropdown
-        tap(1210, 426, 1.0)  # Least Trophies
-        tap(422, 359, 3.0)   # first brawler card after sorting (large delay for UI load)
-        tap(260, 991, 1.0)   # Select
+        # 1. Open Brawler List (Tap center of lobby to avoid UI side-banner overlaps)
+        tap_pct(0.500, 0.500, 1.5)
+        
+        # 2. Tap Sort Dropdown (Top right)
+        tap_pct(0.630, 0.041, 0.8)
+        
+        # 3. Select 'Least Trophies' (Middle right dropdown option)
+        tap_pct(0.630, 0.394, 1.2)
+        
+        # 4. Tap the first brawler card after sorting (Left middle)
+        # Added a massive 3.0s delay to guarantee the Brawler Detail card is fully rendered
+        tap_pct(0.260, 0.370, 3.0)
+        
+        # 5. Tap the SELECT button (Bottom left)
+        tap_pct(0.135, 0.917, 1.5)
+        
         if self.ensure_lobby_after_selection():
             return True
 
         print("Lowest-trophy brawler selection did not return to lobby; trying one recovery pass.")
         self.press_back()
-        time.sleep(0.8)
-        tap(260, 991, 1.0)   # Select again if the brawler details screen is still open
-        return self.ensure_lobby_after_selection()
+        time.sleep(1.0)
+        return False
 
     def ensure_lobby_after_selection(self, timeout=6.0):
         deadline = time.time() + timeout
@@ -195,13 +212,12 @@ class LobbyAutomation:
                 return False
             if state == "lobby":
                 return True
-            if state == "brawler_selection":
-                # The card opened but Select may not have registered yet.
-                self.window_controller.click(
-                    int(260 * self.window_controller.width_ratio),
-                    int(991 * self.window_controller.height_ratio),
-                )
-            elif state == "match":
+            
+            # Rely strictly on the initial ADB percentage blind tap. Do not spam SELECT here
+            # because state misidentification ("brawler_selection" instead of "lobby")
+            # causes rogue clicks that can hit the Brawl Pass.
+            
+            if state == "match":
                 # Immediately after selecting a brawler, "match" usually means
                 # an unrecognized brawler details/stats screen, not a real game.
                 self.press_back()
