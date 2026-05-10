@@ -171,11 +171,12 @@ class LobbyAutomation:
             self.window_controller.device.shell(f"input tap {int(x * wr)} {int(y * hr)}")
             time.sleep(wait)
 
-        print("Selecting next brawler by sorting lowest trophies.")
-        tap(128, 500, 1.4)   # left Brawlers button in lobby
+        print("Selecting next brawler by sorting lowest trophies. Waiting before start...")
+        time.sleep(2.0)
+        tap(960, 540, 1.4)   # center of the lobby (taps the brawler model to open brawler list)
         tap(1210, 45, 0.6)   # sort dropdown
         tap(1210, 426, 1.0)  # Least Trophies
-        tap(422, 359, 2.5)   # first brawler card after sorting (long wait for transition!)
+        tap(500, 400, 2.5)   # first brawler card after sorting (long wait for transition!)
         tap(260, 991, 1.0)   # Select button
         
         if self.ensure_lobby_after_selection():
