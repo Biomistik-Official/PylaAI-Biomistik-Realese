@@ -547,8 +547,8 @@ class SelectBrawler:
                 "trophies": trophies,
                 "wins": 0,
                 "type": "trophies",
-                "automatically_pick": idx != 0,
-                "selection_method": "lowest_trophies",
+                "automatically_pick": True,
+                "selection_method": "named_brawler",
                 "win_streak": 0,
             })
         return data
@@ -805,9 +805,7 @@ class SelectBrawler:
                 self._show_info_modal("Finished", f"No brawlers below {target_trophies} trophies.")
                 self.app.deiconify()
                 return
-            selected_serial, selected_brawler = self.quick_select_least_trophies_brawler()
-            if selected_brawler:
-                data = self._move_brawler_to_front(data, selected_brawler)
+                
             print(f"Push All {target_trophies} first brawler:", data[0])
             self.brawlers_data = data
             self.start_bot()
