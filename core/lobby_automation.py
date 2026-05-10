@@ -196,7 +196,12 @@ class LobbyAutomation:
             if state == "lobby":
                 return True
             if state == "brawler_selection":
-                # The card opened but Select may not have registered yet.
+                # Still in brawler list (maybe transition lagging or card closed).
+                # Do NOT click 260, 991 here because it hits the Brawl Pass.
+                pass
+            elif state == "shop":
+                # The brawler detail card is evaluated as "shop" by state_finder.
+                # Tap the SELECT button.
                 self.window_controller.click(
                     int(260 * self.window_controller.width_ratio),
                     int(991 * self.window_controller.height_ratio),
