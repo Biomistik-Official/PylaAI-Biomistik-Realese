@@ -163,19 +163,20 @@ class LobbyAutomation:
             raise ValueError(f"Brawler '{brawler}' could not be found in the brawler selection menu.")
 
     def select_lowest_trophy_brawler(self):
-        print("Selecting next brawler by sorting lowest trophies... (Robust Rewrite)")
+        print("Selecting next brawler by sorting lowest trophies... (Scrcpy Robust Rewrite)")
         time.sleep(2.0)
         
-        # Get actual ADB reported dimensions to bypass any scrcpy/emulator scaling mismatches
-        size = self.window_controller.device.window_size()
-        width = size.width
-        height = size.height
+        # Use scrcpy's native video frame dimensions. This perfectly bypasses ANY
+        # emulator letterboxing, black bars, or portrait/landscape ADB rotation bugs.
+        frame = self.window_controller.device_frame
+        height, width = frame.shape[:2]
 
         def tap_pct(x_pct, y_pct, wait=1.0):
-            # Calculates exact ADB coordinates based on the reported screen size
+            # scrcpy click() already handles the exact injection into the Android display
             x = int(width * x_pct)
             y = int(height * y_pct)
-            self.window_controller.device.shell(f"input tap {x} {y}")
+            # Use already_include_ratio=True because we are passing absolute frame coordinates
+            self.window_controller.click(x, y, delay=0.05, already_include_ratio=True)
             time.sleep(wait)
 
         # 1. Open Brawler List (Tap center of lobby to avoid UI side-banner overlaps)
