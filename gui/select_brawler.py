@@ -727,20 +727,35 @@ class SelectBrawler:
     def quick_select_least_trophies_brawler(self):
         device = self.get_adb_device_for_quick_select()
         size = device.window_size()
-        wr = size.width / 1920
-        hr = size.height / 1080
+        width = size.width
+        height = size.height
 
-        def tap(x, y, wait=0.8):
-            device.shell(f"input tap {int(x * wr)} {int(y * hr)}")
+        def tap_pct(x_pct, y_pct, wait=1.0):
+            x = int(width * x_pct)
+            y = int(height * y_pct)
+            device.shell(f"input tap {x} {y}")
             time.sleep(wait)
 
         print(f"Push All using ADB device: {device.serial}")
-        tap(128, 500, 1.4)
-        tap(1210, 45, 0.6)
-        tap(1210, 426, 1.0)
+        
+        # 1. Tap center of lobby to open brawler list safely
+        tap_pct(0.500, 0.500, 1.5)
+        
+        # 2. Tap Sort Dropdown
+        tap_pct(0.630, 0.041, 0.8)
+        
+        # 3. Least Trophies
+        tap_pct(0.630, 0.394, 1.2)
+        
+        # Detect the first sorted brawler via OCR
         selected_brawler = self.detect_first_sorted_brawler(device)
-        tap(422, 359, 1.0)
-        tap(260, 991, 1.0)
+        
+        # 4. First brawler card
+        tap_pct(0.260, 0.370, 3.0)
+        
+        # 5. Select button
+        tap_pct(0.135, 0.917, 1.5)
+        
         return device.serial, selected_brawler
 
     def open_push_all_target_window(self):
