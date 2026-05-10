@@ -84,6 +84,34 @@ def refresh_runtime_config():
         os.makedirs("./debug_frames/")
 
 
+def is_end_match_proceed_button_visible(image):
+    button_region = [1480, 850, 420, 210]
+    crop = crop_scaled_region(image, button_region)
+    if crop.size == 0:
+        return False
+        
+    blue_ratio = mask_ratio(crop, (100, 90, 120), (125, 255, 255))
+    white_ratio = mask_ratio(crop, (0, 0, 170), (179, 90, 255))
+    dark_ratio = mask_ratio(crop, (0, 0, 0), (179, 255, 80))
+    if blue_ratio > 0.15 and white_ratio > 0.015 and dark_ratio > 0.04:
+        return True
+    return False
+
+
+def is_end_match_play_again_button_visible(image):
+    button_region = [1050, 850, 430, 210]
+    crop = crop_scaled_region(image, button_region)
+    if crop.size == 0:
+        return False
+        
+    yellow_ratio = mask_ratio(crop, (15, 90, 120), (42, 255, 255))
+    white_ratio = mask_ratio(crop, (0, 0, 170), (179, 90, 255))
+    dark_ratio = mask_ratio(crop, (0, 0, 0), (179, 255, 80))
+    if yellow_ratio > 0.15 and white_ratio > 0.015 and dark_ratio > 0.04:
+        return True
+    return False
+
+
 def find_game_result(screenshot):
     if _current_gamemode == "showdown":
         for place, template_files in showdown_place_templates.items():
@@ -95,6 +123,13 @@ def find_game_result(screenshot):
                     threshold=SHOWDOWN_PLACE_THRESHOLD,
                 ):
                     return place
+                    
+        # Trio Showdown "Your team is #1!" is text-based and varies by language/resolution.
+        # If no place template matched but we clearly see the end-of-match buttons,
+        # we can safely assume it's 1st place since 2nd/3rd/4th templates usually match successfully.
+        if is_end_match_proceed_button_visible(screenshot) or is_end_match_play_again_button_visible(screenshot):
+            return "1st"
+            
         return False
 
     is_victory = is_template_in_region(screenshot, end_results_path + 'victory.png', crop_region)
