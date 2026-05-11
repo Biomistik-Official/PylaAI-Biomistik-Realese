@@ -3,7 +3,7 @@ import time
 from datetime import datetime
 
 import requests
-from common.utils import load_toml_as_dict, save_dict_as_toml, api_base_url
+from common.utils import load_toml_as_dict, save_dict_as_toml, api_base_url, get_requests_proxies
 
 TROPHY_LOG_DIR = "logs"
 TROPHY_LOG_FILE = "trophies.log"
@@ -287,7 +287,7 @@ class TrophyObserver:
         if api_base_url != "localhost":
             # Send the POST request
             try:
-                response = requests.post(f'https://{api_base_url}/api/brawlers', json=data)
+                response = requests.post(f'https://{api_base_url}/api/brawlers', json=data, proxies=get_requests_proxies())
                 if response.status_code == 200:
                     print("Results successfully sent to API")
                     # Update sent_match_history with the latest totals

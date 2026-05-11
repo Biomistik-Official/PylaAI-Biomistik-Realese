@@ -16,6 +16,8 @@ import cv2
 import numpy as np
 from packaging import version
 
+from common.proxy_config import get_proxy_url
+
 DEVELOPER_API_BASE_URL = "https://developer.brawlstars.com/api/"
 _brawl_stars_api_refresh_done = False
 _brawl_stars_api_refresh_signature = None
@@ -29,11 +31,24 @@ def _config_bool(value, default=False):
     return str(value).strip().lower() in ("1", "true", "yes", "on")
 
 
+def get_requests_proxies():
+    """Helper to get proxies for the 'requests' library."""
+    try:
+        url = get_proxy_url()
+        if url:
+            return {"http": url, "https": url}
+    except Exception:
+        pass
+    return None
+
+
 def _developer_api_post(session, endpoint, payload, timeout):
+    proxies = get_requests_proxies()
     response = session.post(
         DEVELOPER_API_BASE_URL + endpoint,
         json=payload,
         timeout=timeout,
+        proxies=proxies,
         headers={
             "Accept": "application/json, text/plain, */*",
             "Origin": "https://developer.brawlstars.com",
@@ -74,6 +89,7 @@ def _extract_api_token(value):
 
 
 def get_public_ip(service_url="https://api.ipify.org"):
+    # Для определения своего IP прокси лучше НЕ использовать, иначе получим IP прокси
     response = requests.get(service_url, timeout=15)
     response.raise_for_status()
     ip_address = response.text.strip()
@@ -121,6 +137,7 @@ def refresh_brawl_stars_api_token_if_enabled(config, file_path="cfg/brawl_stars_
     last_session_error = None
     for attempt in range(2):
         session = requests.Session()
+        # session.proxies can be set once if needed, but we pass it explicitly in _developer_api_post
         _developer_api_post(session, "login", {"email": email, "password": password}, timeout)
         try:
             account = _developer_api_post(session, "account/load", {}, timeout)
@@ -345,6 +362,7 @@ def fetch_brawl_stars_player(api_token, player_tag, timeout=15):
         f"https://api.brawlstars.com/v1/players/{encoded_tag}",
         headers={"Authorization": f"Bearer {api_token}"},
         timeout=timeout,
+        proxies=get_requests_proxies()
     )
     if response.status_code == 200:
         return response.json()
@@ -490,7 +508,7 @@ def get_brawler_list():
         brawler_list = list(load_brawlers_info().keys())
         return brawler_list
     url = f'https://{api_base_url}/get_brawler_list'
-    response = requests.post(url)
+    response = requests.post(url, proxies=get_requests_proxies())
     if response.status_code == 201:
         data = response.json()
         return data.get('brawlers', [])
@@ -517,7 +535,7 @@ def update_missing_brawlers_info(brawlers):
 
 def get_brawler_info(brawler_name):
     url = f'https://{api_base_url}/get_brawler_info'  # Adjust the URL if necessary
-    response = requests.post(url, json={'brawler_name': brawler_name})
+    response = requests.post(url, json={'brawler_name': brawler_name}, proxies=get_requests_proxies())
     if response.status_code == 200:
         data = response.json()
         return data.get('info', [])
@@ -531,7 +549,7 @@ def save_brawler_icon(brawler_name):
     brawler_name_clean = brawler_name.lower().replace(' ', '').replace('-', '').replace('.', '').replace('&',
                                                                                                          '')
     brawlers_url = "https://api.brawlify.com/v1/brawlers"
-    response = requests.get(brawlers_url)
+    response = requests.get(brawlers_url, proxies=get_requests_proxies())
     if response.status_code != 200:
         print(f"Failed to fetch brawlers from API: {response.status_code}")
         return
@@ -544,7 +562,7 @@ def save_brawler_icon(brawler_name):
             '&', '')
         if api_brawler_name == brawler_name_clean:
             icon_url = brawler_obj['imageUrl2']
-            img_response = requests.get(icon_url)
+            img_response = requests.get(icon_url, proxies=get_requests_proxies())
             if img_response.status_code == 200:
                 image = Image.open(BytesIO(img_response.content))
                 safe_name = os.path.basename(brawler_name_clean).replace('.', '').replace('/', '').replace('\\', '')
@@ -560,7 +578,7 @@ def save_brawler_icon(brawler_name):
 
 def get_latest_version():
     url = f'https://{api_base_url}/check_version'
-    response = requests.get(url)
+    response = requests.get(url, proxies=get_requests_proxies())
     if response.status_code == 200:
         data = response.json()
         return data.get('version', '')
@@ -602,7 +620,7 @@ def get_discord_link():
     if api_base_url == "localhost":
         return "https://discord.gg/xUusk3fw4A"
     url = f'https://{api_base_url}/get_discord_link'
-    response = requests.get(url)
+    response = requests.get(url, proxies=get_requests_proxies())
     if response.status_code == 200:
         data = response.json()
         return data.get('link', '')
@@ -611,7 +629,7 @@ def get_discord_link():
 
 def get_online_wall_model_hash():
     url = f'https://{api_base_url}/get_wall_model_hash'
-    response = requests.get(url)
+    response = requests.get(url, proxies=get_requests_proxies())
     if response.status_code == 200:
         data = response.json()
         return data.get('hash', '')
@@ -640,7 +658,7 @@ def current_wall_model_is_latest() -> bool:
 def get_latest_wall_model_file():
     #download the new model to replace the current file and also updates the tile list
     url = f'https://{api_base_url}/get_wall_model_file'
-    response = requests.get(url)
+    response = requests.get(url, proxies=get_requests_proxies())
     if response.status_code == 200:
         with open("./models/tileDetector.onnx", "wb") as file:
             file.write(response.content)
@@ -650,7 +668,7 @@ def get_latest_wall_model_file():
 
 def get_latest_wall_model_classes():
     url = f'https://{api_base_url}/get_wall_model_classes'
-    response = requests.get(url)
+    response = requests.get(url, proxies=get_requests_proxies())
     if response.status_code == 200:
         data = response.json()
         return data.get('classes', [])
