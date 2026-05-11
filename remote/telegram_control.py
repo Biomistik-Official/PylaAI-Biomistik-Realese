@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+import time
 from pathlib import Path
 from typing import Any
 import aiohttp
@@ -12,6 +13,7 @@ import json
 from remote.runtime_control import read_state, write_state, RUNNING, PAUSED
 from remote.telegram_notifier import load_telegram_settings
 from common.utils import _config_bool
+from common.proxy_config import get_aiohttp_proxy
 
 def set_runtime_state(state_path: str | Path, paused: bool) -> str:
     state = PAUSED if paused else RUNNING
@@ -30,6 +32,8 @@ class TelegramControlServer:
         self.loop: asyncio.AbstractEventLoop | None = None
         self._running = False
         self.offset = 0
+        # Rate limiting: не обрабатывать команды чаще 1 раза в 3 секунды на пользователя
+        self._rate_limit: dict[str, float] = {}
 
     def start(self) -> bool:
         settings = self.settings_loader()
@@ -61,10 +65,12 @@ class TelegramControlServer:
     async def _run(self, token: str) -> None:
         self.loop = asyncio.get_running_loop()
         url = f"https://api.telegram.org/bot{token}/"
+        proxy = get_aiohttp_proxy()
         
         print("Telegram control commands active: /start /stop /status /stats /screenshot /queue /skip")
         
-        async with aiohttp.ClientSession() as session:
+        connector = aiohttp.TCPConnector(ssl=False) if proxy else None
+        async with aiohttp.ClientSession(connector=connector) as session:
             # Set bot menu commands
             commands = [
                 {"command": "start", "description": "Resume Pyla-Biomistik"},
@@ -75,12 +81,12 @@ class TelegramControlServer:
                 {"command": "skip", "description": "Skip the current brawler in the queue"},
                 {"command": "screenshot", "description": "Get a live screenshot"}
             ]
-            await session.post(url + "setMyCommands", json={"commands": commands})
+            await session.post(url + "setMyCommands", json={"commands": commands}, proxy=proxy)
             
             while self._running:
                 try:
                     params = {"offset": self.offset, "timeout": 20}
-                    async with session.get(url + "getUpdates", params=params, timeout=25) as resp:
+                    async with session.get(url + "getUpdates", params=params, timeout=25, proxy=proxy) as resp:
                         if not resp.ok:
                             await asyncio.sleep(2)
                             continue
@@ -94,7 +100,7 @@ class TelegramControlServer:
                         for update in updates:
                             self.offset = update["update_id"] + 1
                             if "message" in update and "text" in update["message"]:
-                                await self.handle_message(session, url, update["message"])
+                                await self.handle_message(session, url, update["message"], proxy=proxy)
                                 
                 except asyncio.TimeoutError:
                     continue
@@ -102,13 +108,20 @@ class TelegramControlServer:
                     if self._running:
                         await asyncio.sleep(2)
 
-    async def handle_message(self, session, url, message):
+    async def handle_message(self, session, url, message, proxy=None):
         settings = self.settings_loader()
         allowed_user = str(settings.get("telegram_control_user_id")).strip()
         
         chat_id = message["chat"]["id"]
         user_id = str(message["from"]["id"])
         text = message.get("text", "").strip()
+
+        # Rate limiting: один запрос в 3 секунды на пользователя
+        now = time.time()
+        last_cmd_time = self._rate_limit.get(user_id, 0.0)
+        if now - last_cmd_time < 3.0:
+            return  # тихо игнорируем, не отвечаем
+        self._rate_limit[user_id] = now
         
         # Map keyboard buttons to commands
         button_map = {
@@ -222,19 +235,19 @@ class TelegramControlServer:
             "persistent": True
         }
 
-    async def send_message(self, session, url, chat_id, text):
+    async def send_message(self, session, url, chat_id, text, proxy=None):
         payload = {
             "chat_id": chat_id, 
             "text": text, 
             "parse_mode": "HTML",
             "reply_markup": self.get_keyboard()
         }
-        await session.post(url + "sendMessage", json=payload)
+        await session.post(url + "sendMessage", json=payload, proxy=proxy)
         
-    async def send_photo(self, session, url, chat_id, raw_bytes, caption):
+    async def send_photo(self, session, url, chat_id, raw_bytes, caption, proxy=None):
         data = aiohttp.FormData()
         data.add_field("chat_id", str(chat_id))
         data.add_field("photo", raw_bytes, filename="screenshot.png", content_type="image/png")
         data.add_field("caption", caption)
         data.add_field("reply_markup", json.dumps(self.get_keyboard()))
-        await session.post(url + "sendPhoto", data=data)
+        await session.post(url + "sendPhoto", data=data, proxy=proxy)

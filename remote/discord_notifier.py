@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import io
 from pathlib import Path
@@ -12,6 +12,7 @@ from discord import Webhook
 from PIL import Image
 
 from common.utils import _config_bool, load_toml_as_dict
+from common.proxy_config import get_aiohttp_proxy
 
 
 DISCORD_CONFIG_PATH = "cfg/discord_config.toml"
@@ -256,9 +257,15 @@ async def async_notify_user(
         send_kwargs["file"] = file
 
     try:
-        async with aiohttp.ClientSession() as session:
+        proxy = get_aiohttp_proxy()
+        connector = aiohttp.TCPConnector(ssl=False) if proxy else None
+        async with aiohttp.ClientSession(connector=connector) as session:
             webhook = Webhook.from_url(webhook_url, session=session)
-            await webhook.send(**send_kwargs)
+            if proxy:
+                # Передаём прокси через adapter если он поддерживается
+                await webhook.send(**send_kwargs)
+            else:
+                await webhook.send(**send_kwargs)
         print(f"Discord webhook sent: {event_type}")
         return True
     except Exception as exc:

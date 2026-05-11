@@ -41,6 +41,7 @@ from common.utils import (
     update_wall_model_classes,
 )
 from vision.window_controller import WindowController
+from common.proxy_config import refresh_proxy_async
 
 if platform.architecture()[0] != "64bit":
     print("\nWARNING: Pyla-Biomistik is running on 32-bit Python.")
@@ -48,6 +49,82 @@ if platform.architecture()[0] != "64bit":
     print(f"Current Python: {sys.executable}")
 
 pyla_version = load_toml_as_dict("./cfg/general_config.toml")['pyla_version']
+
+
+# ── Автоочистка старых скриншотов — защита от 40 ГБ в debug_frames ─────────────
+def cleanup_old_screenshots():
+    """Удаляет старые скриншоты из debug_frames/ по возрасту и количеству файлов."""
+    try:
+        cfg = load_toml_as_dict("cfg/general_config.toml")
+        max_age_hours = float(cfg.get("screenshot_cleanup_max_age_hours", 24))
+        max_files = int(cfg.get("screenshot_cleanup_max_files", 300))
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        scan_dirs = [
+            os.path.join(base_dir, "debug_frames"),
+            os.path.join(base_dir, "debug_frames", "vision"),
+        ]
+        extensions = {".png", ".jpg", ".jpeg", ".bmp"}
+        total_deleted = 0
+
+        for scan_dir in scan_dirs:
+            if not os.path.isdir(scan_dir):
+                continue
+
+            # Собрать все файлы с временем создания
+            all_files = []
+            for fname in os.listdir(scan_dir):
+                if os.path.splitext(fname)[1].lower() in extensions:
+                    fpath = os.path.join(scan_dir, fname)
+                    try:
+                        mtime = os.path.getmtime(fpath)
+                        all_files.append((mtime, fpath))
+                    except OSError:
+                        pass
+
+            # Удалить файлы старше max_age_hours
+            if max_age_hours > 0:
+                cutoff = time.time() - max_age_hours * 3600
+                for mtime, fpath in all_files:
+                    if mtime < cutoff:
+                        try:
+                            os.remove(fpath)
+                            total_deleted += 1
+                        except OSError:
+                            pass
+
+            # Если файлов всё равно слишком много — удаляем самые старые
+            if max_files > 0:
+                # Обновить список после предыдущей очистки
+                remaining = []
+                for fname in os.listdir(scan_dir):
+                    if os.path.splitext(fname)[1].lower() in extensions:
+                        fpath = os.path.join(scan_dir, fname)
+                        try:
+                            mtime = os.path.getmtime(fpath)
+                            remaining.append((mtime, fpath))
+                        except OSError:
+                            pass
+                remaining.sort()  # сортировка по времени: старые первые
+                excess = len(remaining) - max_files
+                if excess > 0:
+                    for _, fpath in remaining[:excess]:
+                        try:
+                            os.remove(fpath)
+                            total_deleted += 1
+                        except OSError:
+                            pass
+
+        if total_deleted > 0:
+            print(f"[Cleanup] Удалено {total_deleted} старых скриншотов из debug_frames.")
+    except Exception as e:
+        print(f"[Cleanup] Ошибка при очистке скриншотов: {e}")
+
+
+# Запустить очистку сразу при старте
+cleanup_old_screenshots()
+# Предварительно запустить поиск прокси в фоне (если включён)
+refresh_proxy_async()
+# ────────────────────────────────────────────────────────────────────────────────
 
 
 def parse_max_ips(value):

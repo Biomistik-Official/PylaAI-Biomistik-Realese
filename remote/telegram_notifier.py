@@ -11,11 +11,18 @@ from PIL import Image
 
 import toml
 from common.utils import _config_bool, load_toml_as_dict, clear_toml_cache
+from common.proxy_config import get_aiohttp_proxy
 
 TELEGRAM_CONFIG_PATH = "cfg/telegram_config.toml"
 
 _match_count = 0
 _last_minute_ping = 0.0
+# Дедупликация ложных срабатываний
+_last_bot_stuck_ping = 0.0         # не слать bot_is_stuck чаще раз в 5 минут
+_last_event_hash: str = ""         # не слать идентичное сообщение дважды подряд < 2 мин
+_last_event_time: float = 0.0
+BOT_STUCK_MIN_INTERVAL = 300.0     # 5 минут между уведомлениями "bot stuck"
+DEDUP_INTERVAL = 120.0             # 2 минуты между одинаковыми сообщениями
 
 FIELD_LABELS = {
     "brawler": "🎮 Brawler",
@@ -163,8 +170,22 @@ async def async_notify_user(
     event_type = event_type or "update"
     details = dict(details or {})
     
-    global _match_count, _last_minute_ping
+    global _match_count, _last_minute_ping, _last_bot_stuck_ping, _last_event_hash, _last_event_time
+    now = time.time()
     should_ping = False
+
+    # Дедупликация: bot_is_stuck не чаще раз в 5 минут
+    if event_type == "bot_is_stuck":
+        if now - _last_bot_stuck_ping < BOT_STUCK_MIN_INTERVAL:
+            return False  # пропускаем, слишком часто
+        _last_bot_stuck_ping = now
+
+    # Дедупликация: одинаковое событие не шлёт дважды подряд за 2 минуты
+    event_hash = f"{event_type}:{details.get('result','')}:{details.get('brawler','')}"
+    if event_hash == _last_event_hash and now - _last_event_time < DEDUP_INTERVAL and event_type != "test":
+        return False
+    _last_event_hash = event_hash
+    _last_event_time = now
     
     if event_type == "bot_is_stuck":
         should_ping = _config_bool(settings.get("ping_when_stuck"), False)
@@ -197,7 +218,9 @@ async def async_notify_user(
     image_bytes = _image_to_bytes(screenshot) if include_screenshot else None
 
     try:
-        async with aiohttp.ClientSession() as session:
+        proxy = get_aiohttp_proxy()
+        connector = aiohttp.TCPConnector(ssl=False) if proxy else None
+        async with aiohttp.ClientSession(connector=connector) as session:
             if image_bytes:
                 url = f"https://api.telegram.org/bot{bot_token}/sendPhoto"
                 data = aiohttp.FormData()
@@ -206,7 +229,7 @@ async def async_notify_user(
                 data.add_field("caption", text_message)
                 data.add_field("parse_mode", "HTML")
 
-                async with session.post(url, data=data) as resp:
+                async with session.post(url, data=data, proxy=proxy) as resp:
                     resp_data = await resp.json()
                     if not resp_data.get("ok"):
                         err = resp_data.get("description") or str(resp_data)
@@ -221,7 +244,7 @@ async def async_notify_user(
                     "text": text_message,
                     "parse_mode": "HTML"
                 }
-                async with session.post(url, json=payload) as resp:
+                async with session.post(url, json=payload, proxy=proxy) as resp:
                     resp_data = await resp.json()
                     if not resp_data.get("ok"):
                         err = resp_data.get("description") or str(resp_data)

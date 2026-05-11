@@ -1,7 +1,32 @@
-﻿import sys
+import sys
 import platform
 import subprocess
 import os
+
+# ── Проверка версии Python ─────────────────────────────────────────────────────
+_MIN_PY = (3, 9)
+_MAX_PY = (3, 12)
+_CURRENT_PY = sys.version_info[:2]
+
+if not (_MIN_PY <= _CURRENT_PY <= _MAX_PY):
+    _line = "=" * 62
+    print(f"\n{_line}")
+    print("  ОШИБКА: Неподходящая версия Python!")
+    print(f"  Текущая версия:  Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+    print(f"  Требуется:       Python 3.9 – 3.12")
+    print()
+    print("  ► Скачайте Python 3.11 (рекомендуется):")
+    print("    https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe")
+    print()
+    print("  При установке ОБЯЗАТЕЛЬНО поставьте галочку:")
+    print("  ✓ Add Python to PATH")
+    print(f"{_line}\n")
+    try:
+        input("Нажмите Enter для выхода...")
+    except Exception:
+        pass
+    sys.exit(1)
+# ──────────────────────────────────────────────────────────────────────────────
 
 if platform.system() != "Windows" or "microsoft" in platform.uname()[3].lower():
     print("\n" + "!"*50)

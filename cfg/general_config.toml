@@ -33,3 +33,14 @@ mumu_manager_path = ""
 ldplayer_console_path = ""
 api_base_url = "default"
 brawl_stars_package = "com.supercell.brawlstars"
+
+# ── Прокси (для пользователей из России) ──────────────────────────────────────
+# true  = автоматически найти бесплатный EU прокси (Германия, Нидерланды, Франция…)
+# false = работать без прокси (по умолчанию)
+use_eu_proxy = false
+
+# ── Автоочистка скриншотов ────────────────────────────────────────────────────
+# Удалять debug_frames старше N часов (0 = не удалять)
+screenshot_cleanup_max_age_hours = 24
+# Оставлять не более N файлов (0 = без ограничения)
+screenshot_cleanup_max_files = 300

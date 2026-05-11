@@ -47,8 +47,16 @@ def _get_connected_devices():
 
 
 def _infer_emulator_name(port):
-    if port in {16384, 16416, 16448, 7555}:
+    if port in {16384, 16416, 16448, 16480, 7555}:
         return "MuMu"
+    if port in {62001, 62025, 62049, 62073, 62097, 62121} or (
+        port >= 62001 and (port - 62001) % 24 == 0
+    ):
+        return "NoxPlayer"
+    if port in {5565, 5575, 5585, 5595} or (
+        port >= 5565 and (port - 5565) % 10 == 0
+    ):
+        return "BlueStacks"
     return "LDPlayer"
 
 
@@ -185,13 +193,52 @@ class InstanceRecord:
 # ─── Python finder (for frozen EXE mode) ─────────────────────────────────────
 
 def _find_python_exe():
-    """Return a usable python.exe path. Tries PATH first, then registry, then
-    common install locations. Raises RuntimeError if nothing is found."""
+    """Return a usable python.exe path (Python 3.9-3.12). Raises RuntimeError if nothing is found."""
     import shutil as _sh
-    # 1. Prefer python on PATH (covers most dev setups)
+
+    _MIN_PY = (3, 9)
+    _MAX_PY = (3, 12)
+
+    def _version_ok(exe):
+        """Returns True if the given python exe is version 3.9-3.12."""
+        try:
+            import subprocess as _sp
+            out = _sp.check_output(
+                [exe, "-c", "import sys; print(sys.version_info[:2])"],
+                timeout=5, stderr=_sp.DEVNULL
+            ).decode().strip()
+            ver = tuple(int(x) for x in out.strip("()").split(", "))
+            return _MIN_PY <= ver <= _MAX_PY
+        except Exception:
+            return False
+
+    def _check_and_return(exe):
+        """Validate version and return, or raise with a nice message."""
+        if _version_ok(exe):
+            return exe
+        # Found Python but wrong version — show a dialog
+        try:
+            import subprocess as _sp
+            ver_raw = _sp.check_output(
+                [exe, "--version"], timeout=5, stderr=_sp.STDOUT
+            ).decode().strip()
+        except Exception:
+            ver_raw = "неизвестная версия"
+        msg = (
+            f"Обнаружен {ver_raw}\n"
+            "Pyla-Biomistik требует Python 3.9 – 3.12\n\n"
+            "Скачайте Python 3.11:\n"
+            "https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe\n\n"
+            "При установке отметьте: ✓ Add Python to PATH"
+        )
+        import ctypes as _ct
+        _ct.windll.user32.MessageBoxW(None, msg, "Неподходящая версия Python", 0x10)
+        raise RuntimeError(f"Python version mismatch: {ver_raw}. Need 3.9-3.12.")
+
+    # 1. Prefer python on PATH
     found = _sh.which("python") or _sh.which("python3")
     if found:
-        return found
+        return _check_and_return(found)
 
     # 2. Windows registry — HKLM / HKCU Software\Python\PythonCore
     for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
@@ -206,7 +253,7 @@ def _find_python_exe():
                             with winreg.OpenKey(pk, ver + r"\InstallPath") as ip:
                                 path = winreg.QueryValue(ip, None)
                                 exe = os.path.join(path, "python.exe")
-                                if os.path.isfile(exe):
+                                if os.path.isfile(exe) and _version_ok(exe):
                                     return exe
                             i += 1
                         except OSError:
@@ -225,12 +272,14 @@ def _find_python_exe():
             for sub in ("Python312", "Python311", "Python310", "Python39", "Python38"):
                 candidates.append(os.path.join(base, "Programs", "Python", sub, "python.exe"))
     for c in candidates:
-        if os.path.isfile(c):
+        if os.path.isfile(c) and _version_ok(c):
             return c
 
     raise RuntimeError(
-        "Could not find a Python interpreter.\n"
-        "Please install Python and add it to your PATH, then restart the Hub."
+        "Could not find Python 3.9-3.12.\n"
+        "Please install Python 3.11:\n"
+        "https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe\n"
+        "Check 'Add Python to PATH' during install."
     )
 
 
@@ -718,6 +767,15 @@ class MultiInstanceHub:
                     rec.process.terminate()
                 except Exception:
                     pass
+        # Завершаем ADB-сервер чтобы adb.exe не висел после закрытия Hub
+        try:
+            subprocess.run(
+                [ADB_EXE, "kill-server"],
+                capture_output=True, timeout=5,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+            )
+        except Exception:
+            pass
         self.root.destroy()
 
     def run(self):

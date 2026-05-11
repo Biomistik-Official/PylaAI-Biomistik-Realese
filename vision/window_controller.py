@@ -38,8 +38,12 @@ directions_xy_deltas_dict = {
 BRAWL_STARS_PACKAGE = load_toml_as_dict("cfg/general_config.toml")["brawl_stars_package"]
 
 EMULATOR_PORTS = {
-    "LDPlayer": [5555, 5557, 5559, 5554],
-    "MuMu": [16384, 16416, 16448, 7555, 5558, 5557, 5556, 5555, 5554],
+    "LDPlayer": [5555, 5557, 5559, 5561, 5563, 5565, 5554, 5556, 5558, 5560],
+    "MuMu":    [16384, 16416, 16448, 16480, 7555, 5558, 5557, 5556, 5555, 5554],
+    # BlueStacks 5 / BlueStacks X — кратны 10 начиная с 5555
+    "BlueStacks": [5555, 5565, 5575, 5585, 5595, 5556, 5554],
+    # NoxPlayer — 62001 основной, 62025/62049… мультиплееры
+    "NoxPlayer": [62001, 62025, 62049, 62073, 62097, 62121],
 }
 
 SUPPORTED_EMULATORS = tuple(EMULATOR_PORTS.keys())
@@ -47,15 +51,21 @@ SUPPORTED_EMULATORS = tuple(EMULATOR_PORTS.keys())
 COMMON_LDPLAYER_CONSOLES = [
     r"C:\LDPlayer\LDPlayer9\dnconsole.exe",
     r"C:\LDPlayer\LDPlayer4.0\dnconsole.exe",
+    r"D:\LDPlayer\LDPlayer9\dnconsole.exe",
+    r"D:\LDPlayer\LDPlayer4.0\dnconsole.exe",
     r"C:\Program Files\LDPlayer\LDPlayer9\dnconsole.exe",
     r"C:\Program Files\LDPlayer\LDPlayer4.0\dnconsole.exe",
     r"C:\Program Files (x86)\LDPlayer\LDPlayer9\dnconsole.exe",
     r"C:\Program Files (x86)\LDPlayer\LDPlayer4.0\dnconsole.exe",
+    r"%LOCALAPPDATA%\LDPlayer\LDPlayer9\dnconsole.exe",
+    r"%LOCALAPPDATA%\Programs\LDPlayer\LDPlayer9\dnconsole.exe",
 ]
 
 COMMON_MUMU_MANAGERS = [
     r"C:\Program Files\Netease\MuMuPlayer\nx_main\MuMuManager.exe",
     r"C:\Program Files (x86)\Netease\MuMuPlayer\nx_main\MuMuManager.exe",
+    r"C:\Program Files\Netease\MuMuPlayerGlobal\nx_main\MuMuManager.exe",
+    r"D:\Program Files\Netease\MuMuPlayer\nx_main\MuMuManager.exe",
 ]
 
 LOCAL_ADB_EXE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "adb.exe")
@@ -69,8 +79,14 @@ def _infer_supported_emulator(configured_port):
         configured_port = int(configured_port)
     except (TypeError, ValueError):
         return "LDPlayer"
-    if configured_port in (16384, 16416, 16448, 7555):
+    if configured_port in (16384, 16416, 16448, 16480, 7555):
         return "MuMu"
+    if configured_port in (62001, 62025, 62049, 62073, 62097, 62121):
+        return "NoxPlayer"
+    if configured_port in (5565, 5575, 5585, 5595) or (
+        configured_port >= 5565 and (configured_port - 5565) % 10 == 0
+    ):
+        return "BlueStacks"
     return "LDPlayer"
 
 
@@ -467,9 +483,16 @@ class WindowController:
                 all_supported_ports.extend(EMULATOR_PORTS[emulator_name])
             candidate_ports = _unique_ports(
                 [configured_port]
-                + EMULATOR_PORTS[selected_emulator]
+                + EMULATOR_PORTS.get(selected_emulator, [])
                 + all_supported_ports
-                + list(range(5565, 5756, 10))
+                # LDPlayer multi-instance range
+                + list(range(5554, 5600, 2))
+                # BlueStacks multi-instance range
+                + list(range(5555, 5700, 10))
+                # NoxPlayer multi-instance range
+                + list(range(62001, 62200, 24))
+                # MuMu extended range
+                + list(range(16384, 16640, 32))
             )
 
             device_list = list_online_devices()
@@ -1154,4 +1177,18 @@ class WindowController:
             if hasattr(self, "scrcpy_generation"):
                 self.scrcpy_generation += 1
             if client is not None:
-                client.stop()
+                try:
+                    client.stop()
+                except Exception:
+                    pass
+        # Завершаем ADB-сервер чтобы adb.exe не оставался в фоне
+        try:
+            adb_exe = _adb_executable()
+            subprocess.run(
+                [adb_exe, "kill-server"],
+                capture_output=True,
+                timeout=5,
+                creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+            )
+        except Exception as e:
+            print(f"[ADB] Could not kill ADB server on close: {e}")
