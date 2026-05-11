@@ -12,6 +12,7 @@ from vision.state_finder import (
     find_game_result,
     is_in_prestige_reward,
     get_prestige_next_button_center,
+    get_team_invite_reject_button_center,
     get_star_drop_type,
     get_skin_reward_continue_button_center,
 )
@@ -51,6 +52,9 @@ class StageManager:
         brawler_list = [brawler["brawler"] for brawler in brawlers_data]
         self.Trophy_observer = TrophyObserver(brawler_list)
         bot_config = load_toml_as_dict("cfg/bot_config.toml")
+        self.post_match_action = str(bot_config.get("post_match_action", "lobby")).strip().lower()
+        if self.post_match_action not in ("lobby", "play_again"):
+            self.post_match_action = "lobby"
         adaptive_enabled = str(bot_config.get("adaptive_brain_enabled", "yes")).lower() in ("yes", "true", "1")
         adaptive_window = int(bot_config.get("adaptive_brain_window", 20))
         self.adaptive_brain = AdaptiveBrain(enabled=adaptive_enabled, window_size=adaptive_window)
@@ -89,6 +93,26 @@ class StageManager:
             'trophy_reward': lambda: self.window_controller.press_key("Q"),
             'reward_unlock': self.handle_reward_unlock,
         }
+
+    def should_use_play_again(self, value=0, target=0):
+        if self.post_match_action != "play_again":
+            return False
+        try:
+            return int(value) < int(target)
+        except (TypeError, ValueError):
+            return True
+
+    def dismiss_end_screen(self, use_play_again=False):
+        self.window_controller.keys_up(list("wasd"))
+        if use_play_again:
+            print("Post-match action: clicking PLAY AGAIN.")
+            self.window_controller.click(
+                int(1215 * self.window_controller.width_ratio),
+                int(935 * self.window_controller.height_ratio),
+                delay=0.08,
+            )
+            return
+        self.window_controller.press_key("Q")
 
     def send_webhook_notification(self, event_type, screenshot=None, details=None):
         loop = asyncio.new_event_loop()
@@ -274,10 +298,12 @@ class StageManager:
 
         if refreshed_rows:
             refreshed_rows[0]["automatically_pick"] = False
+            refreshed_rows[0]["selection_method"] = "lowest_trophies"
             for row in refreshed_rows[1:]:
                 if row.get("automatically_pick") is not True:
                     changed = True
                 row["automatically_pick"] = True
+                row["selection_method"] = "lowest_trophies"
 
         old_order = [row.get("brawler") for row in self.brawlers_pick_data]
         new_order = [row.get("brawler") for row in refreshed_rows]
@@ -528,7 +554,22 @@ class StageManager:
         height_ratio = current_height / 1080
         x = int(965 * width_ratio)
         y = int(525 * height_ratio)
-        if drop_type in ("angelic", "demonic", "daily_hold", "starr_nova_hold"):
+        if drop_type == "starr_nova_hold":
+            # Starr Nova requires a long hold — try 5s first, then 10s if still stuck
+            for duration in (5.0, 10.0):
+                if hasattr(self.window_controller, "long_press"):
+                    self.window_controller.long_press(x, y, duration=duration)
+                else:
+                    self.window_controller.click(x, y, delay=duration)
+                time.sleep(0.25)
+
+                followup = self.window_controller.screenshot()
+                followup_bgr = cv2.cvtColor(followup, cv2.COLOR_RGB2BGR)
+                if get_star_drop_type(followup_bgr) != "starr_nova_hold":
+                    break
+                if duration == 5.0:
+                    print("Starr Nova hold still detected after 5s; trying 10s hold.")
+        elif drop_type in ("angelic", "demonic", "daily_hold"):
             for _ in range(2):
                 if hasattr(self.window_controller, "long_press"):
                     self.window_controller.long_press(x, y, duration=1.15)
@@ -606,6 +647,10 @@ class StageManager:
             found_game_result = current_result
             print(f"end_game: re-entry on '{current_state}', skipping trophy update")
 
+        use_play_again = False
+        if already_recorded:
+            found_game_result = current_result
+
         while current_state.startswith("end") and time.time() - end_screen_time < 25:
             if not stats_recorded:
                 found_game_result = current_state.split("_")[1]
@@ -650,8 +695,10 @@ class StageManager:
                     1000 if type_to_push == "trophies" else 300,
                 )
                 value = self._number_or_default(value, 0)
+                use_play_again = self.should_use_play_again(value, push_current_brawler_till)
 
                 if value >= push_current_brawler_till:
+                    use_play_again = False
                     if len(self.brawlers_pick_data) <= 1:
                         print(
                             "Brawler reached required trophies/wins. No more brawlers selected for pushing in the menu. "
@@ -675,12 +722,12 @@ class StageManager:
                             value,
                             push_current_brawler_till,
                         )
-            
+
             # Keep pressing the dismiss key on every iteration until the
             # end-of-match screens give way. One press is rarely enough in
             # showdown: after the place screen there can be star drops,
             # trophy rewards, and offers to dismiss.
-            self.window_controller.press_key("Q")
+            self.dismiss_end_screen(use_play_again=use_play_again)
             button_pressed = True
 
             time.sleep(self.end_screen_dismiss_delay)
@@ -696,6 +743,12 @@ class StageManager:
 
     def close_pop_up(self):
         screenshot = self.window_controller.screenshot()
+        team_invite_reject = get_team_invite_reject_button_center(screenshot, image_is_rgb=True)
+        if team_invite_reject is not None:
+            self.window_controller.keys_up(list("wasd"))
+            self.window_controller.click(*team_invite_reject)
+            self.tap_with_adb_fallback(*team_invite_reject, screenshot_shape=screenshot.shape)
+            return
         if self.close_popup_icon is None:
             self.close_popup_icon = load_image("images/states/close_popup.png", self.window_controller.scale_factor)
         popup_location = find_template_center(screenshot, self.close_popup_icon)
