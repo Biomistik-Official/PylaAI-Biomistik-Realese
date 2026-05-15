@@ -18,6 +18,8 @@ from packaging import version
 
 from common.proxy_config import get_proxy_url
 
+import sys
+
 DEVELOPER_API_BASE_URL = "https://developer.brawlstars.com/api/"
 _brawl_stars_api_refresh_done = False
 _brawl_stars_api_refresh_signature = None
@@ -209,9 +211,13 @@ def resolve_instance_path(path_str):
     instance_id = os.environ.get("PYLAAI_INSTANCE", "")
     if instance_id and instance_id != "1":
         if path_str.startswith("cfg/"):
-            return path_str.replace("cfg/", f"cfg_{instance_id}/", 1)
+            path_str = path_str.replace("cfg/", f"cfg_{instance_id}/", 1)
         elif path_str.startswith("./cfg/"):
-            return path_str.replace("./cfg/", f"./cfg_{instance_id}/", 1)
+            path_str = path_str.replace("./cfg/", f"./cfg_{instance_id}/", 1)
+    
+    import sys
+    if getattr(sys, 'frozen', False):
+        return os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), path_str)
     return path_str
 
 def load_toml_as_dict(file_path):
@@ -566,7 +572,9 @@ def save_brawler_icon(brawler_name):
             if img_response.status_code == 200:
                 image = Image.open(BytesIO(img_response.content))
                 safe_name = os.path.basename(brawler_name_clean).replace('.', '').replace('/', '').replace('\\', '')
-                image.save(f"api/assets/brawler_icons/{safe_name}.png")
+                out_path = resolve_instance_path(f"api/assets/brawler_icons/{safe_name}.png")
+                os.makedirs(os.path.dirname(out_path), exist_ok=True)
+                image.save(out_path)
                 print(f"Saved icon for brawler '{brawler_name}'")
             else:
                 print(f"Failed to download icon for '{brawler_name}'")

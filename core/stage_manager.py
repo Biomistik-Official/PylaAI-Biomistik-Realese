@@ -66,6 +66,10 @@ class StageManager:
         self.last_recorded_result_time = 0.0
         self.last_recorded_result = None
         self.active_end_result = None
+        # Tracks the brawler that is currently playing / just finished a match.
+        # Updated by main.py (Play.current_brawler) so it stays accurate even
+        # after a /skip reshuffles brawlers_pick_data.
+        self.active_brawler = brawler_list[0] if brawler_list else ""
         self.stop_after_post_match_rewards = False
         self.completion_notification_sent = False
         time_thresholds = load_toml_as_dict("./cfg/time_tresholds.toml")
@@ -432,8 +436,14 @@ class StageManager:
                 max_attempts = 30
                 attempts = 0
                 while current_state != "lobby" and attempts < max_attempts:
-                    self.window_controller.press_key("Q")
-                    print("Pressed Q to return to lobby")
+                    # Use Android Back for brawler_selection/shop — pressing Q there
+                    # can accidentally start a match or close the wrong screen.
+                    if current_state in ("brawler_selection", "shop"):
+                        self.Lobby_automation.press_back()
+                        print(f"Pressed Back to exit '{current_state}' and return to lobby")
+                    else:
+                        self.window_controller.press_key("Q")
+                        print("Pressed Q to return to lobby")
                     time.sleep(1)
                     screenshot = self.window_controller.screenshot()
                     current_state = get_state(screenshot)
@@ -654,7 +664,11 @@ class StageManager:
         while current_state.startswith("end") and time.time() - end_screen_time < 25:
             if not stats_recorded:
                 found_game_result = current_state.split("_")[1]
-                current_brawler = self.brawlers_pick_data[0]['brawler']
+                current_brawler = (
+                    self.active_brawler
+                    if self.active_brawler
+                    else self.brawlers_pick_data[0]['brawler']
+                )
                 self.Trophy_observer.add_trophies(found_game_result, current_brawler)
                 self.Trophy_observer.add_win(found_game_result)
                 self.adaptive_brain.record_result(found_game_result)

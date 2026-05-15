@@ -3,21 +3,30 @@ import sys
 import cv2
 import numpy as np
 sys.path.append(os.path.abspath('/'))
-from common.utils import load_toml_as_dict
+from common.utils import load_toml_as_dict, resolve_instance_path
 
 orig_screen_width, orig_screen_height = 1920, 1080
 
-states_path = r"./images/states/"
+states_path = resolve_instance_path("images/states/")
+if not states_path.endswith(('/', '\\')):
+    states_path += '/'
 
-star_drops_path = r"./images/star_drop_types/"
+star_drops_path = resolve_instance_path("images/star_drop_types/")
+if not star_drops_path.endswith(('/', '\\')):
+    star_drops_path += '/'
+
 images_with_star_drop = []
-for file in os.listdir(star_drops_path):
-    if "star_drop" in file:
-        images_with_star_drop.append(file)
-images_with_star_drop.sort(key=lambda name: 0 if name in ("angelic_star_drop.png", "demonic_star_drop.png") else 1)
+if os.path.exists(star_drops_path):
+    for file in os.listdir(star_drops_path):
+        if "star_drop" in file:
+            images_with_star_drop.append(file)
+    images_with_star_drop.sort(key=lambda name: 0 if name in ("angelic_star_drop.png", "demonic_star_drop.png") else 1)
+
 STAR_DROP_TEMPLATE_THRESHOLD = 0.97
 
-end_results_path = r"./images/end_results/"
+end_results_path = resolve_instance_path("images/end_results/")
+if not end_results_path.endswith(('/', '\\')):
+    end_results_path += '/'
 
 region_data = load_toml_as_dict("./cfg/lobby_config.toml")['template_matching']
 super_debug = load_toml_as_dict("./cfg/general_config.toml")['super_debug'] == "yes"
@@ -702,6 +711,13 @@ def is_in_star_drop(image):
 
 
 def get_star_drop_type(image):
+    # Guard: if the lobby PLAY button is visible, this is the normal lobby screen.
+    # The Starr Nova event logo in the bottom-left corner can false-match
+    # starr_nova_star_drop.png.  Actual post-match star drops fill the whole
+    # screen, so the lobby HUD (including the PLAY button) disappears.
+    if is_lobby_play_button_visible(image):
+        return None
+
     if is_in_daily_wins_hold_drop(image):
         return "daily_hold"
     if is_in_daily_wins_drop(image):

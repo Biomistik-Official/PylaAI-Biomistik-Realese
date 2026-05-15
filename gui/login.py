@@ -1,4 +1,4 @@
-﻿import os
+import os
 import sys
 
 import customtkinter as ctk  # Import the customtkinter library

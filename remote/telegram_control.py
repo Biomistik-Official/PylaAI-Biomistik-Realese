@@ -198,9 +198,17 @@ class TelegramControlServer:
                 await self.send_message(session, url, chat_id, "Skip functionality is not available.")
                 return
             if self.skip_queue_cb():
-                await self.send_message(session, url, chat_id, "Skipped the current brawler. Loading the next one...")
+                # Show updated queue info after skip
+                next_info = ""
+                if self.get_queue_cb:
+                    queue = self.get_queue_cb()
+                    if queue:
+                        next_brawler = str(queue[0].get("brawler", "?")).title()
+                        next_target = queue[0].get("push_until", "?")
+                        next_info = f"\n➡️ Next: <b>{next_brawler}</b> (target {next_target} 🏆)"
+                await self.send_message(session, url, chat_id, f"⏭️ Brawler skipped.{next_info}")
             else:
-                await self.send_message(session, url, chat_id, "Failed to skip. Queue might be empty.")
+                await self.send_message(session, url, chat_id, "❌ Failed to skip. Queue is empty or has only one brawler.")
             
         elif command == "/screenshot":
             if not self.get_screenshot_cb:

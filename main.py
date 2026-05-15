@@ -139,7 +139,7 @@ def parse_max_ips(value):
 
 OUT_OF_MATCH_REWARD_STATES = {"prestige_reward", "trophy_reward"}
 TROPHY_REWARD_FOLLOWUP_STATES = {"reward_unlock"}
-LOBBY_ONLY_REWARD_STATES = {"star_drop"}
+LOBBY_ONLY_REWARD_STATES = {"star_drop", "daily_star_drop", "nova_star_drop"}
 MATCH_RESULT_STATES = {
     "end_victory",
     "end_defeat",
@@ -319,12 +319,31 @@ def pyla_main(data):
                 return []
                 
             def skip_queue():
-                if hasattr(self, 'Stage_manager') and self.Stage_manager and self.Stage_manager.brawlers_pick_data:
-                    from common.utils import save_brawler_data
-                    self.Stage_manager.brawlers_pick_data.pop(0)
-                    save_brawler_data(self.Stage_manager.brawlers_pick_data)
-                    return True
-                return False
+                if not (hasattr(self, 'Stage_manager') and self.Stage_manager and self.Stage_manager.brawlers_pick_data):
+                    return False
+                from common.utils import save_brawler_data
+                skipped = self.Stage_manager.brawlers_pick_data.pop(0)
+                print(f"/skip: skipped brawler '{skipped.get('brawler', '?')}', remaining={len(self.Stage_manager.brawlers_pick_data)}")
+                if self.Stage_manager.brawlers_pick_data:
+                    next_data = self.Stage_manager.brawlers_pick_data[0]
+                    next_name = next_data.get('brawler', '')
+                    # Sync Trophy_observer to next brawler's saved state
+                    self.Stage_manager.Trophy_observer.change_trophies(
+                        self.Stage_manager._number_or_default(next_data.get('trophies', 0), 0)
+                    )
+                    self.Stage_manager.Trophy_observer.current_wins = (
+                        self.Stage_manager._number_or_default(next_data.get('wins', 0), 0)
+                    )
+                    self.Stage_manager.Trophy_observer.win_streak = (
+                        self.Stage_manager._number_or_default(next_data.get('win_streak', 0), 0)
+                    )
+                    # Sync Play.current_brawler and active_brawler so match stats use the right name
+                    if hasattr(self, 'Play') and self.Play:
+                        self.Play.current_brawler = next_name
+                    self.Stage_manager.active_brawler = next_name
+                    print(f"/skip: switched to '{next_name}'")
+                save_brawler_data(self.Stage_manager.brawlers_pick_data)
+                return True
             
             self.discord_control.get_screenshot_cb = get_screenshot
             self.discord_control.get_stats_cb = get_stats
@@ -997,6 +1016,9 @@ def pyla_main(data):
                     continue
 
                 brawler = self.Stage_manager.brawlers_pick_data[0]['brawler']
+                # Keep active_brawler in sync so end_game() records the correct name
+                self.Stage_manager.active_brawler = brawler
+                self.Play.current_brawler = brawler
                 play_start = time.perf_counter()
                 self.Play.main(frame, brawler, self)
                 self.perf_play_ema = self.update_ema(

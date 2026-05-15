@@ -94,7 +94,8 @@ class SelectBrawler:
 
         # Load images
         for brawler in self.brawlers:
-            img_path = f"./api/assets/brawler_icons/{brawler}.png"
+            from common.utils import resolve_instance_path
+            img_path = resolve_instance_path(f"api/assets/brawler_icons/{brawler}.png")
             try:
                 img = Image.open(img_path)
             except FileNotFoundError:
