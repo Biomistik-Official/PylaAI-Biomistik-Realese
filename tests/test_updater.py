@@ -15,6 +15,10 @@ from tools.updater import (
 
 
 class UpdaterTest(unittest.TestCase):
+    def test_update_download_stays_on_biomistik_official_fork(self):
+        url, _label = latest_download_url()
+        self.assertEqual(url, 'https://github.com/Biomistik-Official/PylaAI-Biomistik-Realese/archive/refs/heads/main.zip')
+
     def test_updater_downloads_main_branch_not_possibly_stale_release(self):
         url, label = latest_download_url()
 

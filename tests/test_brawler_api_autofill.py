@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from gui.select_brawler import SelectBrawler
-import common.utils
+import common.utils as utils
 from common.utils import get_config_player_tag
 
 
@@ -53,9 +53,9 @@ class BrawlerApiAutofillTest(unittest.TestCase):
 
         self.assertFalse(utils._brawl_stars_api_refresh_done)
 
-    @patch("utils.save_dict_as_toml")
-    @patch("utils.get_public_ip", return_value="1.2.3.4")
-    @patch("utils._developer_api_post")
+    @patch("common.utils.save_dict_as_toml")
+    @patch("common.utils.get_public_ip", return_value="1.2.3.4")
+    @patch("common.utils._developer_api_post")
     def test_auto_refresh_retries_when_previous_check_had_no_token(self, mock_post, _mock_ip, _mock_save):
         utils._brawl_stars_api_refresh_done = True
         utils._brawl_stars_api_refresh_signature = ("cfg/brawl_stars_api.toml", "old", "old", "#OLD")
@@ -83,10 +83,10 @@ class BrawlerApiAutofillTest(unittest.TestCase):
             ("cfg/brawl_stars_api.toml", "user@example.com", "secret", "#PLAYER"),
         )
 
-    @patch("utils.save_dict_as_toml")
-    @patch("utils.time.sleep")
-    @patch("utils.get_public_ip", return_value="1.2.3.4")
-    @patch("utils._developer_api_post")
+    @patch("common.utils.save_dict_as_toml")
+    @patch("common.utils.time.sleep")
+    @patch("common.utils.get_public_ip", return_value="1.2.3.4")
+    @patch("common.utils._developer_api_post")
     def test_auto_refresh_retries_developer_session_not_found(self, mock_post, _mock_ip, _mock_sleep, _mock_save):
         utils._brawl_stars_api_refresh_done = False
         utils._brawl_stars_api_refresh_signature = None
@@ -115,7 +115,7 @@ class BrawlerApiAutofillTest(unittest.TestCase):
             ["login", "account/load", "login", "account/load", "apikey/list", "apikey/create"],
         )
 
-    @patch("utils.refresh_brawl_stars_api_token_if_enabled")
+    @patch("common.utils.refresh_brawl_stars_api_token_if_enabled")
     def test_load_config_uses_existing_token_when_auto_refresh_session_fails(self, mock_refresh):
         utils._brawl_stars_api_refresh_done = False
         utils._brawl_stars_api_refresh_signature = None
@@ -141,7 +141,7 @@ class BrawlerApiAutofillTest(unittest.TestCase):
             if os.path.exists(path):
                 os.remove(path)
 
-    @patch("utils.refresh_brawl_stars_api_token_if_enabled")
+    @patch("common.utils.refresh_brawl_stars_api_token_if_enabled")
     def test_force_refresh_still_reports_developer_refresh_failure(self, mock_refresh):
         mock_refresh.side_effect = RuntimeError("Developer portal error 401 at account/load: Session not found")
         path = "cfg/test_brawl_stars_api_force_refresh.toml"
@@ -163,7 +163,7 @@ class BrawlerApiAutofillTest(unittest.TestCase):
             if os.path.exists(path):
                 os.remove(path)
 
-    @patch("utils.refresh_brawl_stars_api_token_if_enabled")
+    @patch("common.utils.refresh_brawl_stars_api_token_if_enabled")
     def test_api_config_is_reloaded_fresh(self, mock_refresh):
         mock_refresh.side_effect = lambda config, file_path: config
         path = "cfg/test_brawl_stars_api_autofill.toml"

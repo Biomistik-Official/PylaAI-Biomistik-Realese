@@ -13,7 +13,7 @@ class LongRunWatchdogTests(unittest.TestCase):
         text = "mFocusedApp=ActivityRecord{123 u0 com.android.launcher/.Launcher t1}"
         self.assertEqual(_foreground_package_from_text(text), "com.android.launcher")
 
-    @patch("window_controller.time.time")
+    @patch("vision.window_controller.time.time")
     def test_emulator_restart_respects_cooldown(self, mock_time):
         controller = object.__new__(WindowController)
         controller.last_emulator_restart_time = 100.0
@@ -24,7 +24,7 @@ class LongRunWatchdogTests(unittest.TestCase):
 
     @patch.object(WindowController, "launch_saved_emulator_profile", return_value=False)
     @patch.object(WindowController, "keys_up")
-    @patch("window_controller.time.time")
+    @patch("vision.window_controller.time.time")
     def test_emulator_restart_failure_does_not_raise(self, mock_time, _mock_keys_up, _mock_launch):
         controller = object.__new__(WindowController)
         controller.selected_emulator = "LDPlayer"

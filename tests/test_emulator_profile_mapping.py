@@ -22,10 +22,10 @@ class EmulatorProfileMappingTest(unittest.TestCase):
         self.assertEqual(_infer_ldplayer_index(5557), 1)
         self.assertEqual(_infer_ldplayer_index(5559), 2)
 
-    def test_old_unsupported_emulator_config_never_uses_adb_server_port(self):
+    def test_supported_bluestacks_config_never_uses_adb_server_port(self):
         emulator, port = _normalize_emulator_config("BlueStacks", 5037)
 
-        self.assertEqual(emulator, "LDPlayer")
+        self.assertEqual(emulator, "BlueStacks")
         self.assertEqual(port, 0)
 
     def test_mumu_config_keeps_supported_port(self):

@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-import remote.discord_notifier
+import remote.discord_notifier as discord_notifier
 import discord
 
 from remote.discord_notifier import _add_fields, _image_to_file, _ping_content, _title_and_description

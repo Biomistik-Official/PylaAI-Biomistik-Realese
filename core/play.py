@@ -122,10 +122,14 @@ class Movement:
         
     @staticmethod
     def get_enemy_pos(enemy):
+        if getattr(enemy, 'ground', None) is not None:
+            return enemy.ground
         return (enemy[0] + enemy[2]) / 2, (enemy[1] + enemy[3]) / 2
 
     @staticmethod
     def get_player_pos(player_data):
+        if getattr(player_data, 'ground', None) is not None:
+            return player_data.ground
         return (player_data[0] + player_data[2]) / 2, (player_data[1] + player_data[3]) / 2
 
     @staticmethod
@@ -178,6 +182,8 @@ class Movement:
         return True
 
     def use_gadget(self):
+        if not self.can_use_ability_on_target():
+            return False
         if self.gadget_cooldown > 0:
             current_time = time.time()
             if current_time - self.last_gadget_time < self.gadget_cooldown:
@@ -188,6 +194,8 @@ class Movement:
         return True
 
     def use_super(self):
+        if not self.can_use_ability_on_target():
+            return False
         if self.super_cooldown > 0:
             current_time = time.time()
             if current_time - self.last_super_time < self.super_cooldown:
@@ -196,6 +204,12 @@ class Movement:
         print("Using super")
         self.window_controller.press_key("E", delay=0.035)
         return True
+
+    def can_use_ability_on_target(self):
+        selected = getattr(self, '_selected_enemy_spawnable', None)
+        if selected is not None:
+            return not selected
+        return not (getattr(self, 'enemy_spawnable_data', []) and not getattr(self, 'enemy_brawler_data', []))
 
     @staticmethod
     def should_use_super_on_enemy(brawler, super_type, enemy_distance, attack_range, super_range, enemy_hittable):
@@ -627,6 +641,12 @@ class Play(Movement):
             "brawlers_info": self.brawlers_info,
             "player_data": player_data,
             "enemy_data": enemy_data,
+            "enemy_brawler_data": getattr(self, 'enemy_brawler_data', enemy_data),
+            "enemy_spawnable_data": getattr(self, 'enemy_spawnable_data', []),
+            "teammate_spawnable_data": getattr(self, 'teammate_spawnable_data', []),
+            "is_there_enemy_spawnable": bool,
+            "is_enemy_spawnable": self.is_enemy_spawnable,
+            "find_closest_enemy_spawnable": self.find_closest_enemy_spawnable,
             "teammate_data": getattr(self, "last_playstyle_teammate_data", None),
             "walls": walls,
             "game_mode": self.game_mode,
@@ -1475,23 +1495,39 @@ class Play(Movement):
             return False
         return True
 
+    @staticmethod
+    def enemy_targets(data):
+        return list(data.get('enemy') or []) + list(data.get('enemy_spawnable') or [])
+
+    def is_enemy_spawnable(self, box):
+        return box is not None and any(tuple(box[:4]) == tuple(other[:4])
+               for other in getattr(self, 'enemy_spawnable_data', []))
+
+    def find_closest_enemy_spawnable(self, enemy_data, player_coords, walls):
+        return self.find_closest_enemy(enemy_data, player_coords, walls, 'attack')
+
     def find_closest_enemy(self, enemy_data, player_coords, walls, skill_type):
         player_pos_x, player_pos_y = player_coords
         closest_hittable_distance = float('inf')
         closest_unhittable_distance = float('inf')
         closest_hittable = None
         closest_unhittable = None
-        for enemy in enemy_data:
+        hittable_box = unhittable_box = None
+        for enemy in enemy_data or []:
             enemy_pos = self.get_enemy_pos(enemy)
             distance = self.get_distance(enemy_pos, player_coords)
             if self.is_enemy_hittable((player_pos_x, player_pos_y), enemy_pos, walls, skill_type):
                 if distance < closest_hittable_distance:
                     closest_hittable_distance = distance
                     closest_hittable = [enemy_pos, distance]
+                    hittable_box = enemy
             else:
                 if distance < closest_unhittable_distance:
                     closest_unhittable_distance = distance
                     closest_unhittable = [enemy_pos, distance]
+                    unhittable_box = enemy
+        chosen_box = hittable_box if closest_hittable else unhittable_box
+        self._selected_enemy_spawnable = self.is_enemy_spawnable(chosen_box) if chosen_box is not None else None
         if closest_hittable:
             return closest_hittable
         elif closest_unhittable:
@@ -1584,7 +1620,8 @@ class Play(Movement):
         if 'd' in move_direction.lower():
             dx += distance
         new_pos = (player_pos[0] + dx, player_pos[1] + dy)
-        return self.walls_block_line_of_sight(player_pos, new_pos, walls, padding=self.wall_path_padding)
+        obstacles = list(walls or []) + getattr(self, 'last_movement_obstacles', [])
+        return self.walls_block_line_of_sight(player_pos, new_pos, obstacles, padding=self.wall_path_padding)
 
     def is_path_blocked_angle(self, player_pos, angle_degrees, walls, distance=None):
         """Check if the path in the given angle direction is blocked by walls.
@@ -1599,9 +1636,10 @@ class Play(Movement):
         sin_a = math.sin(angle_rad)
         max_probe = max(1.0, self.wall_path_probe_tiles)
         probes = (distance * 0.5, distance, distance * max_probe)
+        obstacles = list(walls or []) + getattr(self, 'last_movement_obstacles', [])
         for d in probes:
             new_pos = (player_pos[0] + cos_a * d, player_pos[1] + sin_a * d)
-            if self.walls_block_line_of_sight(player_pos, new_pos, walls, padding=self.wall_path_padding):
+            if self.walls_block_line_of_sight(player_pos, new_pos, obstacles, padding=self.wall_path_padding):
                 return True
         return False
 
@@ -1969,8 +2007,11 @@ class Play(Movement):
 
     def process_tile_data(self, tile_data):
         walls = []
+        self.last_movement_obstacles = (list(tile_data.get('water', [])) +
+            list(tile_data.get('rope_fence', [])) + list(tile_data.get('out_of_bounds', [])))
+        self.last_bush_data = [box for name, boxes in tile_data.items() if 'bush' in name for box in boxes]
         for class_name, boxes in tile_data.items():
-            if class_name != 'bush':
+            if class_name in ('wall', 'indestructible_wall', 'fragile'):
                 walls.extend(boxes)
         walls = self.merge_wall_boxes(walls)
 
@@ -2141,6 +2182,11 @@ class Play(Movement):
         self.refresh_ready_abilities(frame, current_time)
 
         self.current_frame = frame
+        self.enemy_brawler_data = list(data.get('enemy') or [])
+        self.enemy_spawnable_data = list(data.get('enemy_spawnable') or [])
+        self.teammate_spawnable_data = list(data.get('teammate_spawnable') or [])
+        self._selected_enemy_spawnable = None
+        data['enemy'] = self.enemy_targets(data)
         self.last_playstyle_teammate_data = data.get("teammate")
         movement = self.loop(brawler, data, current_time)
 

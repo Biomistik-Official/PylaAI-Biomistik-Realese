@@ -28,8 +28,12 @@ STEP = {
 
 
 class AdaptiveBrain:
-    def __init__(self, enabled=True, state_path=ADAPTIVE_STATE_PATH, window_size=20):
+    def __init__(self, enabled=True, state_path=None, window_size=20):
         self.enabled = enabled
+        if state_path is None:
+            instance = os.environ.get("PYLAAI_INSTANCE", "1")
+            state_path = (f"cfg_{int(instance)}/adaptive_state.json"
+                          if instance.isdigit() and 1 < int(instance) <= 99 else ADAPTIVE_STATE_PATH)
         self.state_path = state_path
         self.window_size = max(5, int(window_size))
         self.state = self._load()

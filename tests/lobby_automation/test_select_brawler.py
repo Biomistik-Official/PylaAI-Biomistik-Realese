@@ -9,15 +9,15 @@ from core.lobby_automation import LobbyAutomation
 
 class TestLobbyAutomation(unittest.TestCase):
 
-    @patch("lobby_automation.load_toml_as_dict")
+    @patch("core.lobby_automation.load_toml_as_dict")
     def setUp(self, mock_load_toml):
-        mock_load_toml.return_value = {"lobby": {"brawler_btn": (0, 0), "select_btn": (0, 0)}}
+        mock_load_toml.return_value = {"lobby": {"brawler_btn": (0, 0), "select_btn": (0, 0)}, "ocr_scale_down_factor": 0.5}
         self.mock_window_controller = MagicMock()
         self.mock_window_controller.width_ratio = 1
         self.mock_window_controller.height_ratio = 1
         self.lobby = LobbyAutomation(self.mock_window_controller)
 
-    @patch("lobby_automation.extract_text_and_positions")
+    @patch("core.lobby_automation.extract_text_and_positions")
     def test_can_select_brawlers(self, mock_extract_text):
         """Tests that bot can select brawlers once he reaches the brawlers selection menu."""
         expected_brawler_x = 2012
@@ -31,7 +31,8 @@ class TestLobbyAutomation(unittest.TestCase):
         test_image = np.array(Image.open("./tests/assets/brawlers_menu.PNG"))
         self.mock_window_controller.screenshot.return_value = test_image
 
-        self.lobby.select_brawler("shelly")
+        with patch("core.lobby_automation.load_toml_as_dict", return_value={"ocr_scale_down_factor": 0.5}), patch("core.lobby_automation.time.sleep"), patch("core.lobby_automation.get_state", return_value="brawler_selection"), patch("core.lobby_automation.extract_text_strings", return_value=["shelly"]):
+            self.lobby._select_brawler_legacy("shelly")
 
         self.assertTrue(self.mock_window_controller.click.called, "No clicks were made at all")
         self.assert_click_within_tolerance(expected_brawler_x, expected_brawler_y, tolerance)

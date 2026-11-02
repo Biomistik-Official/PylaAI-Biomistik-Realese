@@ -7,6 +7,12 @@ import threading
 import time
 import winreg
 
+# The browser panel starts without importing Tkinter or the game runtime.
+if __name__ == "__main__" and "--legacy" not in sys.argv:
+    from webui.launcher import main as launch_browser
+    launch_browser()
+    raise SystemExit(0)
+
 try:
     import customtkinter as ctk
 except ImportError:
@@ -627,7 +633,7 @@ class MultiInstanceHub:
             python_exe = sys.executable
 
         proc = subprocess.Popen(
-            [python_exe, "main.py"],
+            [python_exe, "main.py", "--legacy"],
             cwd=BASE_DIR, env=env,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             bufsize=1, encoding="utf-8", errors="replace",

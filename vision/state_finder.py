@@ -157,12 +157,21 @@ def find_game_result(screenshot):
 
 
 def get_in_game_state(image):
+    if (get_team_invite_reject_button_center(image) is not None
+            and mask_ratio(crop_scaled_region(image, [970, 600, 350, 150]), (40, 100, 100), (85, 255, 255)) > .25
+            and mask_ratio(crop_scaled_region(image, [550, 215, 820, 390]), (95, 100, 100), (125, 255, 255)) > .30):
+        return "popup"
+    if is_in_offer_popup(image):
+        return "popup"
+    from vision.upstream_ui import detect_state
+    modern_state = detect_state(image)
+    if modern_state is not None and modern_state != 'lobby':
+        return modern_state
     game_result = is_in_end_of_a_match(image)
     if game_result: return f"end_{game_result}"
     if is_in_shop(image): return "shop"
-    if is_in_offer_popup(image): return "popup"
     if is_in_match_making(image): return "match_making"
-    if is_in_lobby(image): return "lobby"
+    if modern_state == 'lobby' or is_in_lobby(image): return "lobby"
     if is_in_brawler_selection(image):
         return "brawler_selection"
 
@@ -722,10 +731,13 @@ def get_star_drop_type(image):
         return "daily_hold"
     if is_in_daily_wins_drop(image):
         return "standard"
-    for image_filename in images_with_star_drop:
+    from vision.upstream_ui import ASSET_DIR
+    candidates = [(name, star_drops_path + name) for name in images_with_star_drop]
+    candidates.extend((path.name, str(path)) for path in (ASSET_DIR.parent/'star_drop_types').glob('*star_drop*.png'))
+    for image_filename, template_path in candidates:
         if is_template_in_region(
                 image,
-                star_drops_path + image_filename,
+                template_path,
                 region_data['star_drop'],
                 threshold=STAR_DROP_TEMPLATE_THRESHOLD,
         ):

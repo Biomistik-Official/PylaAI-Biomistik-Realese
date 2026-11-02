@@ -1,110 +1,55 @@
-# PylaAi-Biomistik
+# PylaAI Biomistik
 
-This is an advanced, heavily upgraded fork of the PylaAi bot. While the upstream repository focuses mainly on basic Showdown and Brawlball movements, **PylaAi-Biomistik** introduces a massive suite of new features, quality-of-life improvements, and an entirely reorganized, professional codebase.
+Fork of [PylaAI](https://github.com/PylaAI/PylaAI) with browser menus, multiple emulator profiles, playstyles and Telegram/Discord controls.
 
-### 🔥 Exclusive Features in PylaAi-Biomistik:
+## Запуск
 
-- **Dynamic Playstyles Logic:** The bot no longer plays every brawler the same way! It features a robust playstyle system (Aggro, Passive, Standard, etc.) that adjusts aggression, grouping, and dodging based on the current situation and the brawler being played.
-- **Full Telegram & Discord Remote Control:** Control your bot completely wirelessly! We've added comprehensive Discord and Telegram integrations featuring interactive UI buttons, live match stats, remote screenshots (`/screenshot`), and queue management (`/queue`, `/skip`).
-- **Advanced Queue & Automation:** A heavily improved Stage Manager that reliably pushes multiple brawlers, auto-skips, and accurately processes the "Push All" queue without manual intervention.
-- **Improved Game Modes:** Enhanced logic for Brawl Ball (proper goal pushing, disabled fog panic) alongside the existing high-tier Showdown (Trio/Solo) logic.
-- **Unified Control Hub & Multi-Instance Support:** Manage multiple bot instances simultaneously! Launch instances dynamically, control them all from one centralized dashboard, and read real-time logs directly inside the beautiful custom GUI interface.
-- **Clean Architecture:** The entire repository has been refactored into logical packages (`core/`, `vision/`, `remote/`, `common/`) making it incredibly easy for developers to navigate, read, and extend the code.
-- **Analog & Advanced Movement:** Continuous angle movement, trio team spacing, hysteresis anti-ping-pong logic, wall-based unstuck detector, and poison fog avoidance.
+Нужны Windows, Python 3.11 (64-bit) и Android-эмулятор с Brawl Stars. Рекомендуемое разрешение игры — 1920×1080.
 
-PylaAi-Biomistik is currently the most feature-rich external Brawl Stars bot available.
+В терминале из папки проекта:
 
-## Installation / How to run
-For normal users, you only need `setup.exe`.
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements-web.txt
+.\start-browser.bat
+```
 
-> **⚠️ PREREQUISITE:** You MUST have Python installed on your computer before running the setup. Download and install **Python 3.11** (make sure to check "Add Python to PATH" during installation) from python.org.
+Подготовка открывается в браузере, обычно на [127.0.0.1:5185](http://127.0.0.1:5185):
 
-1. Download or clone this repository.
-2. Open the project folder.
-3. Run `setup.exe`.
-4. Wait until setup finishes. It will automatically:
-   - download and install all required Python libraries via pip
-   - install the best available ONNX Runtime option for your PC
-   - generate a one-click launch script
-5. Start your Android emulator.
-6. Open Brawl Stars in the emulator.
-7. Set the emulator resolution to 1920x1080 for best results.
-8. Double-click the generated `run pylaai-biomistik.bat` file or run `python PylaLauncher.py`.
-9. In the hub, choose your emulator, select your brawler setup, then press Start.
+1. Выбери подключённый эмулятор.
+2. При желании подключи аккаунт Brawl Stars API. Укажи тег и данные developer.brawlstars.com либо готовый токен, затем нажми «Войти и загрузить бойцов». Этот шаг можно пропустить.
+3. Выбери карточки бойцов, задай цели по трофеям или победам и собери очередь.
+4. Проверь параметры и нажми «Запустить бота».
 
-## Manual developer setup:
+Для старых оконных меню: `python PylaLauncher.py --legacy`. Для запуска без открытия вкладки: `python PylaLauncher.py --no-browser --port 5185`.
 
-1. Install Python 3.11 and Git.
-2. Run `pip install -r requirements.txt`.
-3. Run `python PylaLauncher.py`.
+Закрытие вкладки не останавливает игру: используй «Остановить» в панели. Ctrl+C в процессе панели завершает её экземпляры. ADB и DLL в корне нужны для работы.
 
-## Brawl Stars API trophy autofill :
+## Настройки и личные данные
 
-1. Create a developer account at https://developer.brawlstars.com/
-2. Open `cfg/brawl_stars_api.toml`.
-3. Fill in: `player_tag = "#YOURTAG"` `developer_email = "YOUR_DEVELOPER_EMAIL"` `developer_password = "YOUR_DEVELOPER_PASSWORD"`
-4. You can also set the player tag in the Hub under Additional Settings.
-5. When you click a brawler in the brawler selection window, the Current Trophies field is filled from the API automatically.
-6. Auto-refresh logs in to the official developer portal, detects the current public IP, deletes old PylaAi-Biomistik-created keys, creates a fresh key for that IP, and saves the generated token locally.
-7. Keep `delete_all_tokens = false` unless you really want every key on the developer account deleted.
-8. Do not share a filled `cfg/brawl_stars_api.toml`; the committed file should keep tokens, email, and password blank.
+Опубликованы пустые шаблоны API, Telegram, Discord и входа. Пароли, токены, ID, тег игрока, очередь, история матчей, обучение, логи и снимки рабочего экрана в публикацию не включены. Эти данные вводятся локально; не добавляй заполненные настройки в Git.
 
-## Push All 1k :
+Пустое поле пароля/токена сохраняет прежнее значение; явная кнопка «Очистить» удаляет его после сохранения. Вход в API сначала пробует существующий токен и не удаляет ключи аккаунта. Для удалённого управления укажи свой ID владельца. Дополнительные профили хранятся в `cfg_N/`.
 
-1. Fill `cfg/brawl_stars_api.toml` first.
-2. Start your emulator, open Brawl Stars, and leave the game on the lobby screen.
-3. Run `python PylaLauncher.py`.
-4. In the brawler selection window, press Push All 1k.
-5. The bot will sort the in-game brawler menu by Least Trophies, select the lowest trophy brawler, and build a queue for all known brawlers under 1000 trophies.
+## Обновления
 
-## Recovery features :
+Перенесены версия моделей и интерфейса оригинала от 31 октября 2026 года: выбор бойца поиском, современные модели распознавания, местность, призванные объекты и новые экраны наград. Доступен возврат к прежним моделям и листанию. Подробнее: [перенос изменений](docs/UPSTREAM-MIGRATION.md).
 
-- If Brawl Stars closes or another app is in front, the bot can relaunch Brawl Stars.
-- If the Brawl Stars Idle Disconnect / Reload dialog appears, the bot presses Reload.
-- If the scrcpy video feed freezes, the bot restarts the scrcpy feed instead of repeatedly restarting Brawl Stars.
-- While the bot is running, a small PylaAi-Biomistik Control window lets you pause and resume movement safely.
+Это версия из исходников. Старые установщики, обновляторы EXE и одноразовые патчи в неё не включены. Автоматический обновлятор использует `main`; до слияния этой ветки он может установить прежнюю версию. Не запускай его поверх этой ветки.
 
-## Discord / Telegram remote control :
+Браузер, CPU/DirectML-инференс и выбор в игровом меню проверялись. Полные матчи после переноса и установка на чистой Windows ещё требуют проверки.
 
-1. Open `cfg/discord_config.toml` or `cfg/telegram_config.toml`.
-2. For Discord, Webhook notifications only need `webhook_url`. For interactive commands, provide a bot token.
-3. Keep tokens private. Anyone with it can control the bot.
-4. Fill in your `user_id` so the bot only listens to you.
-5. In Discord/Telegram, use the interactive UI buttons or type commands like `/start`, `/stop`, `/status`, `/queue`, and `/screenshot`.
-6. Restart PylaAi-Biomistik after changing remote-control settings.
+## Разработка
 
-## Performance troubleshooting :
+Устройство проекта: [OVERVIEW.md](OVERVIEW.md).
 
-- Run `python common/performance_profile.py`.
-- If it says CPUExecutionProvider, run `setup.exe` again or set `cfg/general_config.toml` `cpu_or_gpu = "directml"`.
-- If the bot shows 1-2 IPS while Python CPU usage is low, check the scrcpy frame FPS line from `common/performance_profile.py`. Low frame FPS means the emulator/ADB feed is slow, not the AI model.
-- On laptops with two GPUs, set Windows Graphics settings for python.exe and the emulator to High performance.
-- If DirectML is active but still very slow, try `directml_device_id = "1"` in `cfg/general_config.toml`, then restart the bot.
-- Turn off Windows Efficiency mode for the emulator if Task Manager shows it. Efficiency mode can cap emulator frame delivery and make the bot look stuck at 2-5 IPS.
-- For LDPlayer or MuMu, select the matching emulator in the hub or set `current_emulator = "LDPlayer" / "MuMu"` in `cfg/general_config.toml`, use 1920x1080 landscape, set emulator FPS to 60, and disable any low-FPS/eco mode.
-- Keep some free RAM. If memory is above about 85%, close Discord/browser/other games before running the bot.
-- Enable Debug Screen in Additional Settings to open a live vision overlay while the bot runs. It shows player, teammate, enemy, wall, fog, and range overlays.
+```powershell
+python -m unittest discover -s tests -q
+node tests/test_setup_flow.cjs
+node --check webui/static/app.js
+git diff --check
+```
 
-## Wall model improvement :
+Node.js нужен только для проверок JavaScript, сама панель работает на Python.
 
-The active wall/bush model is `models/tileDetector.onnx`.
-- Capture wall-model frames: `python tools/capture_wall_samples.py --seconds 300 --start-match`
-- Build the wall YOLO dataset: `python tools/create_wall_dataset.py`
-- Label the images in YOLO format with: `0 wall 1 bush 2 close_bush`
-- Train/export on GPU: `python tools/train_wall_model.py --device 0`
-- After testing, install the exported wall model: `python tools/install_vision_model.py --source runs/wall_train/pylaai_wall/weights/best.onnx --target models/tileDetector.onnx`
-
-## Devs :
-
-- Iyordanov
-- AngelFire
-- Biomistik (Fork Author)
-
-### Run tests
-Run `python -m unittest discover` to check if your changes have made any regressions.
-
-### Performance profile
-If the bot drops to 1-3 IPS while Python CPU usage is low, first apply the safe capture profile and restart:
-`python tools/apply_performance_profile.py --profile balanced`
-
-Use `--profile low-end` for older laptops that overheat or throttle. PylaAi-Biomistik requires 64-bit Python; emulator 32-bit/GFX modes are optional emulator settings, not a Python requirement.
+Авторы исходного проекта: Iyordanov, AngelFire. Автор форка: Biomistik.

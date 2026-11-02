@@ -1,3 +1,10 @@
+import sys as _browser_sys
+
+if __name__ == "__main__" and "--legacy" not in _browser_sys.argv:
+    from webui.launcher import main as launch_browser
+    launch_browser()
+    raise SystemExit(0)
+
 import asyncio
 import gc
 import os
@@ -137,7 +144,7 @@ def parse_max_ips(value):
     return max_ips
 
 
-OUT_OF_MATCH_REWARD_STATES = {"prestige_reward", "trophy_reward"}
+OUT_OF_MATCH_REWARD_STATES = {"prestige_reward", "trophy_reward", "daily_wins", "prestige_milestone"}
 TROPHY_REWARD_FOLLOWUP_STATES = {"reward_unlock"}
 LOBBY_ONLY_REWARD_STATES = {"star_drop", "daily_star_drop", "nova_star_drop"}
 MATCH_RESULT_STATES = {
@@ -194,9 +201,7 @@ def pyla_main(data):
             self.Stage_manager = StageManager(data, self.lobby_automator, self.window_controller)
             self.Stage_manager.adaptive_brain.apply_to_play(self.Play)
             self.states_requiring_data = ["lobby"]
-            if data[0]['automatically_pick']:
-                print("Picking brawler automatically")
-                self.lobby_automator.select_brawler(data[0]['brawler'])
+            # StageManager resolves the queued name on a confirmed lobby screen.
             self.Play.current_brawler = data[0]['brawler']
             self.no_detections_action_threshold = 60 * 8
             self.initialize_stage_manager()
@@ -289,6 +294,7 @@ def pyla_main(data):
             self.perf_feed_fps = 0.0
             self.disconnect_ocr_interval = 6.0
             self.control_window = RuntimeControlWindow()
+            self.lobby_automator.control = self.control_window
             self.control_window.start()
             self.discord_control = DiscordControlServer(self.control_window.state_path)
             self.telegram_control = TelegramControlServer(self.control_window.state_path)
@@ -323,6 +329,8 @@ def pyla_main(data):
                     return False
                 from common.utils import save_brawler_data
                 skipped = self.Stage_manager.brawlers_pick_data.pop(0)
+                self.Stage_manager.selection_pending = True
+                self.Stage_manager.selected_brawler_name = None
                 print(f"/skip: skipped brawler '{skipped.get('brawler', '?')}', remaining={len(self.Stage_manager.brawlers_pick_data)}")
                 if self.Stage_manager.brawlers_pick_data:
                     next_data = self.Stage_manager.brawlers_pick_data[0]
@@ -366,13 +374,8 @@ def pyla_main(data):
 
         @staticmethod
         def load_models():
-            folder_path = "./models/"
-            model_names = ['mainInGameModel.onnx', 'tileDetector.onnx']
-            loaded_models = []
-
-            for name in model_names:
-                loaded_models.append(folder_path + name)
-            return loaded_models
+            from vision.model_profiles import model_paths
+            return model_paths()
 
         def restart_brawl_stars(self):
             if not self.window_controller.restart_brawl_stars():
@@ -656,9 +659,17 @@ def pyla_main(data):
 
         def handle_lobby_watchdog(self, state):
             now = time.time()
+            if (not getattr(self.Stage_manager, 'match_start_requested', False)
+                    or getattr(self.Stage_manager, 'selection_pending', False)
+                    or self.control_window.is_paused() or self.control_window.is_stopped()):
+                self.lobby_entered_at = None
+                return False
             if state != "lobby" or self.in_cooldown:
                 if state != "lobby":
                     self.lobby_entered_at = None
+                return False
+
+            if get_state(self.window_controller.screenshot()) != 'lobby':
                 return False
 
             if self.lobby_entered_at is None:
@@ -774,7 +785,9 @@ def pyla_main(data):
                 frame_data = None
                 self.Stage_manager.do_state(state, frame_data)
                 if state == "lobby":
-                    self.match_launch_pending = True
+                    self.match_launch_pending = bool(getattr(self.Stage_manager, 'match_start_requested', False))
+                    if self.match_launch_pending:
+                        self.last_lobby_start_press = time.time()
                 self.handle_lobby_watchdog(state)
 
             if self.Time_management.no_detections_check():
@@ -925,6 +938,10 @@ def pyla_main(data):
             s_time = time.time()
             c = 0
             while True:
+                if self.control_window.is_stopped():
+                    self.window_controller.keys_up(list("wasd"))
+                    self.Play.reset_match_control_state()
+                    break
                 if self.handle_pause_control():
                     s_time = time.time()
                     c = 0
@@ -1039,7 +1056,13 @@ def pyla_main(data):
             self.control_window.close()
 
     main = Main()
-    main.main()
+    try:
+        main.main()
+    finally:
+        main.discord_control.close()
+        main.telegram_control.close()
+        main.control_window.close()
+        main.window_controller.close()
 
 
 def run_app():

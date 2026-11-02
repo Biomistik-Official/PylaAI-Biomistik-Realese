@@ -96,7 +96,8 @@
         "super_range": 576,
         "ignore_walls_for_attacks": false,
         "ignore_walls_for_supers": true,
-        "hold_attack": 0
+        "hold_attack": 0,
+        "actual_name": "El Primo"
     },
     "mortis": {
         "safe_range": 0.0,
@@ -240,7 +241,8 @@
         "super_range": 320,
         "ignore_walls_for_attacks": false,
         "ignore_walls_for_supers": true,
-        "hold_attack": 0
+        "hold_attack": 0,
+        "actual_name": "8-Bit"
     },
     "sandy": {
         "safe_range": 236.0,
@@ -276,7 +278,8 @@
         "super_range": 320,
         "ignore_walls_for_attacks": false,
         "ignore_walls_for_supers": true,
-        "hold_attack": 0
+        "hold_attack": 0,
+        "actual_name": "Mr. P"
     },
     "max": {
         "safe_range": 328.0,
@@ -555,7 +558,8 @@
         "super_range": 0,
         "ignore_walls_for_attacks": false,
         "ignore_walls_for_supers": true,
-        "hold_attack": 0
+        "hold_attack": 0,
+        "actual_name": "R-T"
     },
     "willow": {
         "safe_range": 288.0,
@@ -762,7 +766,8 @@
         "super_range": 320,
         "ignore_walls_for_attacks": true,
         "ignore_walls_for_supers": true,
-        "hold_attack": 0
+        "hold_attack": 0,
+        "actual_name": "Larry & Lawrie"
     },
     "kenji": {
         "safe_range": 0.0,
@@ -834,7 +839,8 @@
         "super_range": 0,
         "ignore_walls_for_attacks": false,
         "ignore_walls_for_supers": true,
-        "hold_attack": 0
+        "hold_attack": 0,
+        "actual_name": "Jae-Yong"
     },
     "trunk": {
         "safe_range": 0,
@@ -924,7 +930,8 @@
         "super_range": 469,
         "ignore_walls_for_attacks": false,
         "ignore_walls_for_supers": true,
-        "hold_attack": 0
+        "hold_attack": 0,
+        "actual_name": "Starr Nova"
     },
     "bolt": {
         "safe_range": 0,
@@ -943,5 +950,59 @@
         "ignore_walls_for_attacks": false,
         "ignore_walls_for_supers": true,
         "hold_attack": 0
+    },
+    "nori": {
+        "attack_range": 533,
+        "hold_attack": 0,
+        "ignore_walls_for_attacks": false,
+        "ignore_walls_for_supers": true,
+        "safe_range": 328,
+        "super_range": 640,
+        "super_type": "damage"
+    },
+    "wendy": {
+        "attack_projectile_radius": 300,
+        "attack_projectile_speed": 3500,
+        "attack_range": 512,
+        "hold_attack": 0,
+        "ignore_walls_for_attacks": false,
+        "ignore_walls_for_supers": true,
+        "rarity": "Mythic",
+        "safe_range": 315,
+        "speed": 770,
+        "super_projectile_radius": 0,
+        "super_projectile_speed": 1196,
+        "super_range": 320,
+        "super_type": "damage"
+    },
+    "cosmo": {
+        "attack_projectile_radius": 300,
+        "attack_projectile_speed": 4000,
+        "attack_range": 576,
+        "hold_attack": 0,
+        "ignore_walls_for_attacks": false,
+        "ignore_walls_for_supers": false,
+        "rarity": "Mythic",
+        "safe_range": 354,
+        "speed": 750,
+        "super_projectile_radius": 0,
+        "super_projectile_speed": 4000,
+        "super_range": 597,
+        "super_type": "other_target"
+    },
+    "vince": {
+        "attack_projectile_radius": 100,
+        "attack_projectile_speed": 4000,
+        "attack_range": 533,
+        "hold_attack": 0,
+        "ignore_walls_for_attacks": false,
+        "ignore_walls_for_supers": true,
+        "rarity": "Mythic",
+        "safe_range": 328,
+        "speed": 750,
+        "super_projectile_radius": 0,
+        "super_projectile_speed": 3200,
+        "super_range": 576,
+        "super_type": "damage"
     }
 }

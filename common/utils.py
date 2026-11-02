@@ -100,7 +100,7 @@ def get_public_ip(service_url="https://api.ipify.org"):
     return ip_address
 
 
-def refresh_brawl_stars_api_token_if_enabled(config, file_path="cfg/brawl_stars_api.toml", force=False):
+def refresh_brawl_stars_api_token_if_enabled(config, file_path="cfg/brawl_stars_api.toml", force=False, persist=True):
     global _brawl_stars_api_refresh_done, _brawl_stars_api_refresh_signature
     if not _config_bool(config.get("auto_refresh_token"), False):
         _brawl_stars_api_refresh_done = True
@@ -186,7 +186,8 @@ def refresh_brawl_stars_api_token_if_enabled(config, file_path="cfg/brawl_stars_
 
     config["api_token"] = new_token
     config["last_public_ip"] = public_ip
-    save_dict_as_toml(config, file_path)
+    if persist:
+        save_dict_as_toml(config, file_path)
     _brawl_stars_api_refresh_done = True
     _brawl_stars_api_refresh_signature = refresh_signature
     print(f"Refreshed Brawl Stars API token for public IP {public_ip}.")
@@ -291,8 +292,13 @@ def save_brawler_data(data):
     """
     Save the given data to a json file. As a list of dictionaries.
     """
-    with open("latest_brawler_data.json", 'w') as f:
-        json.dump(data, f, indent=4)
+    if os.environ.get("PYLAAI_BROWSER_WORKER") == "1":
+        from pathlib import Path
+        from webui.storage import atomic_write
+        atomic_write(Path(resolve_instance_path("cfg/browser_queue.json")), json.dumps(data, indent=4))
+    else:
+        with open("latest_brawler_data.json", 'w') as f:
+            json.dump(data, f, indent=4)
 
 
 def normalize_brawler_name(name):

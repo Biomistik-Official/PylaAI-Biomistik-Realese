@@ -8,6 +8,7 @@ from pathlib import Path
 
 RUNNING = "running"
 PAUSED = "paused"
+STOPPED = "stopped"
 
 
 def write_state(path, state):
@@ -25,9 +26,10 @@ def read_state(path):
 class RuntimeControlWindow:
     def __init__(self):
         state_dir = Path("logs")
-        self.state_path = state_dir / f"runtime_control_{os.getpid()}.state"
+        self.state_path = Path(os.environ.get("PYLAAI_CONTROL_PATH") or state_dir / f"runtime_control_{os.getpid()}.state")
         self.process = None
-        write_state(self.state_path, RUNNING)
+        if not self.state_path.exists():
+            write_state(self.state_path, RUNNING)
 
     def start(self):
         # When launched from the Hub, skip the separate popup window.
@@ -49,6 +51,9 @@ class RuntimeControlWindow:
 
     def is_paused(self):
         return read_state(self.state_path) == PAUSED
+
+    def is_stopped(self):
+        return read_state(self.state_path) == STOPPED
 
     def close(self):
         write_state(self.state_path, RUNNING)

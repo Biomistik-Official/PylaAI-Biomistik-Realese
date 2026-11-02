@@ -24,7 +24,7 @@ class DummyWindowController:
 
 
 class LowestTrophySelectionTests(unittest.TestCase):
-    @patch("lobby_automation.time.sleep", return_value=None)
+    @patch("core.lobby_automation.time.sleep", return_value=None)
     def test_always_clicks_first_lowest_trophy_brawler_card(self, *_):
         automation = object.__new__(LobbyAutomation)
         automation.window_controller = DummyWindowController()
@@ -34,8 +34,8 @@ class LowestTrophySelectionTests(unittest.TestCase):
 
         self.assertEqual(automation.window_controller.clicks[3], (422, 359))
 
-    @patch("lobby_automation.time.sleep", return_value=None)
-    @patch("lobby_automation.get_state", side_effect=["match", "lobby"])
+    @patch("core.lobby_automation.time.sleep", return_value=None)
+    @patch("core.lobby_automation.get_state", side_effect=["match", "lobby"])
     def test_recovers_if_lowest_selection_opens_details_screen(self, *_):
         automation = object.__new__(LobbyAutomation)
         automation.window_controller = DummyWindowController()

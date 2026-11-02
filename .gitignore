@@ -1,5 +1,11 @@
 ﻿.venv/
 /.idea
+.upstream/
+cfg_*/
+cfg/browser_queue.json
+cfg/browser_ui.json
+baseline-tests.log
+verification-tests.log
 *.pyc
 cfg/match_history.toml
 cfg/adaptive_state.json
@@ -21,3 +27,19 @@ web_ui/server.py
 web_ui/static/main.js
 web_ui/static/style.css
 web_ui/templates/index.html
+
+# Private local state and publication exclusions
+*.log
+*.pid
+*.tmp
+*.bak
+.env
+.env.*
+!.env.example
+archive/
+.publish/
+cfg/update_info.json
+*.pem
+*.key
+*.p12
+*.pfx

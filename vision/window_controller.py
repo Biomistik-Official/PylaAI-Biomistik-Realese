@@ -1131,6 +1131,28 @@ class WindowController:
         target_y = y * self.height_ratio
         self.click(target_x, target_y, delay, touch_up=touch_up, touch_down=touch_down)
 
+    def type_text(self, text, clear=False):
+        """Send one safely quoted ASCII argument to Android's shell input command."""
+        import shlex
+        text = str(text)
+        if not text.isascii() or any(ord(c) < 32 or ord(c) == 127 for c in text) or len(text) > 80:
+            return False
+        serial = getattr(self, "connected_serial", "")
+        if not serial:
+            return False
+        commands = []
+        if clear:
+            commands.extend([
+                ["shell", "input", "keyevent", "KEYCODE_MOVE_END"],
+                ["shell", "input", "keyevent"] + ["KEYCODE_DEL"] * 80,
+            ])
+        if text:
+            commands.append(["shell", "input", "text", shlex.quote(text.replace(" ", "%s"))])
+        try:
+            return all(_run_adb(serial, args, timeout=8).returncode == 0 for args in commands)
+        except (OSError, subprocess.SubprocessError):
+            return False
+
     def android_back(self):
         try:
             completed = _run_adb(self.connected_serial, ["shell", "input", "keyevent", "4"], timeout=3)
@@ -1171,6 +1193,10 @@ class WindowController:
         self.touch_up(int(end_x), int(end_y), pointer_id=self.PID_ATTACK)
 
     def close(self):
+        try:
+            self.stop_joystick()
+        except Exception:
+            pass
         if hasattr(self, 'scrcpy_client'):
             client = self.scrcpy_client
             self.scrcpy_client = None
@@ -1181,6 +1207,9 @@ class WindowController:
                     client.stop()
                 except Exception:
                     pass
+        # ADB is shared by all emulator instances; the Hub closes only this client.
+        if os.environ.get("PYLAAI_HUB_MODE") == "1":
+            return
         # Завершаем ADB-сервер чтобы adb.exe не оставался в фоне
         try:
             adb_exe = _adb_executable()

@@ -11,8 +11,8 @@ import ctypes
 from pathlib import Path
 
 
-REPO_OWNER = "xxz-888"
-REPO_NAME = "Pyla-Biomistik"
+REPO_OWNER = "Biomistik-Official"
+REPO_NAME = "PylaAI-Biomistik-Realese"
 LATEST_RELEASE_API = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/releases/latest"
 MAIN_BRANCH_API = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/commits/main"
 MAIN_BRANCH_ZIP = f"https://github.com/{REPO_OWNER}/{REPO_NAME}/archive/refs/heads/main.zip"
@@ -21,6 +21,7 @@ UPDATE_INFO_PATH = Path("cfg") / "update_info.json"
 SKIPPED_DIRS = {
     ".git",
     ".venv",
+    ".upstream",
     "venv",
     "__pycache__",
     "logs",

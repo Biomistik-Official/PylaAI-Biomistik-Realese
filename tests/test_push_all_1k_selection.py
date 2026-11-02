@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from gui.select_brawler import SelectBrawler
@@ -7,6 +8,9 @@ from gui.select_brawler import SelectBrawler
 class PushAll1kSelectionTest(unittest.TestCase):
     def test_start_bot_closes_selector_before_heavy_startup(self):
         obj = object.__new__(SelectBrawler)
+        obj.tag_var = SimpleNamespace(get=lambda: "")
+        obj.player_tag = ""
+        obj._closing = False
         obj.brawlers_data = [{"brawler": "shelly"}]
         calls = []
 
@@ -17,6 +21,9 @@ class PushAll1kSelectionTest(unittest.TestCase):
             calls.append(("start", data))
 
         obj.close_app = close_app
+        obj._hide_window = close_app
+        obj._cancel_queued_callbacks = lambda: None
+        obj.app = SimpleNamespace(quit=lambda: None)
         obj.data_setter = data_setter
 
         SelectBrawler.start_bot(obj)
@@ -45,6 +52,9 @@ class PushAll1kSelectionTest(unittest.TestCase):
 
     def test_push_all_target_filters_and_sets_target_amount(self):
         obj = object.__new__(SelectBrawler)
+        obj.tag_var = SimpleNamespace(get=lambda: "")
+        obj.player_tag = ""
+        obj._closing = False
         obj.brawlers = ["shelly", "colt", "meg"]
         player_data = {
             "brawlers": [
@@ -63,11 +73,14 @@ class PushAll1kSelectionTest(unittest.TestCase):
 
         self.assertEqual([row["brawler"] for row in data], ["shelly"])
         self.assertEqual(data[0]["push_until"], 500)
-        self.assertFalse(data[0]["automatically_pick"])
-        self.assertEqual(data[0]["selection_method"], "lowest_trophies")
+        self.assertTrue(data[0]["automatically_pick"])
+        self.assertEqual(data[0]["selection_method"], "named_brawler")
 
-    def test_push_all_targets_all_use_lowest_trophies_selection_method(self):
+    def test_push_all_targets_all_use_named_search_selection_method(self):
         obj = object.__new__(SelectBrawler)
+        obj.tag_var = SimpleNamespace(get=lambda: "")
+        obj.player_tag = ""
+        obj._closing = False
         obj.brawlers = ["shelly", "colt", "meg"]
         player_data = {
             "brawlers": [
@@ -87,8 +100,8 @@ class PushAll1kSelectionTest(unittest.TestCase):
                     data = SelectBrawler.get_push_all_data(obj, target)
 
                     self.assertTrue(data)
-                    self.assertTrue(all(row["selection_method"] == "lowest_trophies" for row in data))
-                    self.assertFalse(data[0]["automatically_pick"])
+                    self.assertTrue(all(row["selection_method"] == "named_brawler" for row in data))
+                    self.assertTrue(data[0]["automatically_pick"])
                     self.assertTrue(all(row["automatically_pick"] for row in data[1:]))
 
 

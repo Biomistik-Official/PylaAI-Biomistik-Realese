@@ -94,6 +94,8 @@ class StageManager:
             'daily_star_drop': self.handle_star_drop,
             'nova_star_drop': self.handle_star_drop,
             'prestige_reward': self.handle_prestige_reward,
+            'daily_wins': self.handle_daily_wins,
+            'prestige_milestone': self.handle_prestige_milestone,
             'trophy_reward': lambda: self.window_controller.press_key("Q"),
             'reward_unlock': self.handle_reward_unlock,
         }
@@ -301,7 +303,9 @@ class StageManager:
             self.push_all_needs_selection = bool(refreshed_rows)
 
         if refreshed_rows:
-            refreshed_rows[0]["automatically_pick"] = False
+            refreshed_rows[0]["automatically_pick"] = (
+                self.push_all_needs_selection or bool(refreshed_rows[0].get("automatically_pick", False))
+            )
             refreshed_rows[0]["selection_method"] = "lowest_trophies"
             for row in refreshed_rows[1:]:
                 if row.get("automatically_pick") is not True:
@@ -350,7 +354,28 @@ class StageManager:
             int(api_config.get("timeout_seconds", 15)),
         )
 
+    def select_queued_brawler(self):
+        if not self.brawlers_pick_data:
+            return False
+        row = self.brawlers_pick_data[0]
+        if not row.get("automatically_pick", False):
+            return True
+        name = row["brawler"]
+        if getattr(self, "selected_brawler_name", None) == name and not getattr(self, "selection_pending", False):
+            return True
+        self.selection_pending = True
+        # Even saved 'lowest_trophies' queues must resolve the actual named row
+        # in the modern search UI, rather than assume a screen slot's identity.
+        if self.Lobby_automation.select_brawler(name) is not True:
+            return False
+        if not self.brawlers_pick_data or self.brawlers_pick_data[0].get('brawler') != name:
+            return False
+        self.selected_brawler_name = name
+        self.selection_pending = False
+        return True
+
     def start_game(self):
+        self.match_start_requested = False
         print("state is lobby, starting game")
         if self.stop_after_post_match_rewards:
             print("Post-match rewards cleared; stopping after completed target.")
@@ -451,13 +476,7 @@ class StageManager:
                 if attempts >= max_attempts:
                     print("Failed to reach lobby after max attempts")
                 else:
-                    selection_method = self.brawlers_pick_data[0].get("selection_method", "named_brawler")
-                    if selection_method == "lowest_trophies":
-                        selected = self.Lobby_automation.select_lowest_trophy_brawler()
-                    else:
-                        next_brawler_name = self.brawlers_pick_data[0]['brawler']
-                        self.Lobby_automation.select_brawler(next_brawler_name)
-                        selected = True
+                    selected = self.select_queued_brawler()
                     if not selected:
                         print("Could not confirm the next brawler selection reached lobby; delaying match start.")
                         self.window_controller.keys_up(list("wasd"))
@@ -467,22 +486,47 @@ class StageManager:
 
         elif self.push_all_needs_selection:
             print("Push All queue changed from API; selecting the new brawler.")
-            selection_method = self.brawlers_pick_data[0].get("selection_method", "named_brawler")
-            if selection_method == "lowest_trophies":
-                selected = self.Lobby_automation.select_lowest_trophy_brawler()
-            else:
-                next_brawler_name = self.brawlers_pick_data[0]['brawler']
-                self.Lobby_automation.select_brawler(next_brawler_name)
-                selected = True
+            selected = self.select_queued_brawler()
             if not selected:
                 print("Could not confirm the API-refreshed brawler selection reached lobby; delaying match start.")
                 self.window_controller.keys_up(list("wasd"))
                 return
 
+        if not self.select_queued_brawler():
+            self.window_controller.keys_up(list("wasd"))
+            print("Match start blocked until the queued brawler is confirmed.")
+            return
+
+        control = getattr(self.Lobby_automation, 'control', None)
+        if control and (control.is_paused() or control.is_stopped()):
+            return
+
         # q btn is over the start btn
         self.window_controller.keys_up(list("wasd"))
         self.window_controller.press_key("Q")
+        self.match_start_requested = True
         print("Pressed Q to start a match")
+
+    def handle_daily_wins(self):
+        control = getattr(self.Lobby_automation, 'control', None)
+        for _ in range(8):
+            if control and (control.is_paused() or control.is_stopped()):
+                return
+            if get_state(self.window_controller.screenshot()) != 'daily_wins':
+                return
+            self.window_controller.click(int(960*self.window_controller.width_ratio),
+                                         int(540*self.window_controller.height_ratio))
+            for _ in range(10):
+                if control and (control.is_paused() or control.is_stopped()):
+                    return
+                time.sleep(.1)
+
+    def handle_prestige_milestone(self):
+        if get_state(self.window_controller.screenshot()) != 'prestige_milestone':
+            return
+        # This is a continuation screen, not proof of a 1k reset/completed target.
+        self.window_controller.click(int(700*self.window_controller.width_ratio),
+                                     int(1000*self.window_controller.height_ratio))
     def advance_to_next_brawler_after_prestige(self):
         if not self.brawlers_pick_data:
             return False
@@ -638,7 +682,7 @@ class StageManager:
             self.window_controller.press_key("Q")
             return
 
-        self.Lobby_automation.select_lowest_trophy_brawler()
+        self.select_queued_brawler()
 
     def end_game(self):
         screenshot = self.window_controller.screenshot()

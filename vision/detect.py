@@ -1,4 +1,5 @@
 import os
+import json
 import platform
 import warnings
 
@@ -7,6 +8,11 @@ import numpy as np
 import onnxruntime as ort
 
 from common.utils import load_toml_as_dict
+from vision.entity_model import EntityBox, decode_pose, read_layout
+
+_TERRAIN_TILE_CLASSES = ['wall', 'bush', 'rope_fence', 'water', 'out_of_bounds']
+_SEMANTIC_TILE_NAMES = dict(wall='wall', indestructible_wall='wall', fragile='wall',
+                          bush='bush', rope_fence='rope_fence', water='water', out_of_bounds='out_of_bounds')
 
 warnings.filterwarnings(
     "ignore",
@@ -135,8 +141,14 @@ def _numpy_nms(boxes, scores, iou_threshold=0.6):
     return np.array(keep, dtype=np.int32)
 
 
-def _postprocess_raw(raw_output, conf_thresh=0.6, iou_thresh=0.6):
-    prediction = raw_output[0]
+def _postprocess_raw(raw_output, conf_thresh=0.6, iou_thresh=0.6, end2end=False):
+    prediction = np.asarray(raw_output[0] if isinstance(raw_output, (list, tuple)) else raw_output)
+    if end2end:
+        if prediction.ndim == 3:
+            prediction = prediction[0]
+        if prediction.ndim != 2 or prediction.shape[1] != 6:
+            raise ValueError(f'Unexpected end-to-end output: {prediction.shape}')
+        return [prediction[(prediction[:, 4] >= conf_thresh) & np.isfinite(prediction).all(1)].copy()]
 
     if prediction.ndim == 3:
         prediction = prediction[0]
@@ -198,6 +210,22 @@ class Detect:
         self.model, self.device = self.load_model()
         self.input_name = self.model.get_inputs()[0].name
         self.output_names = [output.name for output in self.model.get_outputs()]
+        layout = read_layout(self.model)
+        self.keypoint_shape = layout['keypoints']
+        self.end_to_end = self.end2end = layout['end_to_end']
+        self.classes = layout['classes'] or self.classes
+        self.input_size = layout['input_size'] or self.input_size
+        self.tile_size = 54
+        self.semantic_outputs = {name: i for i, name in enumerate(self.output_names)}
+        self.semantic = {'class_ids', 'confidence'}.issubset(self.semantic_outputs)
+        if self.semantic:
+            with open(os.path.splitext(model_path)[0] + '.json', encoding='utf-8') as handle:
+                manifest = json.load(handle)
+            self.semantic_names = [manifest['class_ids'][str(i)] for i in range(len(manifest['class_ids']))]
+            self.input_size = (manifest['height'], manifest['width'])
+            if list(self.model.get_inputs()[0].shape) != [1, 3, *self.input_size]:
+                raise ValueError('Terrain model and JSON manifest input sizes do not match.')
+            self.classes = list(_TERRAIN_TILE_CLASSES)
         self._padded_img_buffer = np.full(
             (1, 3, self.input_size[0], self.input_size[1]),
             128.0 / 255.0,
@@ -220,47 +248,137 @@ class Detect:
         else:
             so.intra_op_num_threads = 1
             so.inter_op_num_threads = 1
-        model = ort.InferenceSession(self.model_path, sess_options=so, providers=providers)
+        try:
+            model = ort.InferenceSession(self.model_path, sess_options=so, providers=providers)
+        except Exception:
+            if first_provider == 'CPUExecutionProvider':
+                raise
+            model = ort.InferenceSession(self.model_path, sess_options=so, providers=['CPUExecutionProvider'])
         return model, model.get_providers()[0]
 
     def preprocess_image(self, img):
         h, w = img.shape[:2]
+
         scale = min(self.input_size[0] / h, self.input_size[1] / w)
         new_w = int(w * scale)
         new_h = int(h * scale)
+        pad_x = pad_y = 0
+        if self.end2end or self.semantic or self.keypoint_shape:
+            new_w, new_h = round(w * scale), round(h * scale)
+            pad_x = (self.input_size[1] - new_w) // 2
+            pad_y = (self.input_size[0] - new_h) // 2
+            self._padded_img_buffer.fill(114.0 / 255.0)
+        elif new_w != self._last_resized_w or new_h != self._last_resized_h:
+            self._padded_img_buffer.fill(128.0 / 255.0)
+        self._last_resized_w, self._last_resized_h = new_w, new_h
 
-        if new_w != self._last_resized_w or new_h != self._last_resized_h:
-            self._padded_img_buffer[:] = 128.0 / 255.0
-            self._last_resized_w = new_w
-            self._last_resized_h = new_h
+        resized_img = cv2.resize(
+            img,
+            (new_w, new_h),
+            interpolation=cv2.INTER_LINEAR
+        )
 
-        resized_img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
         img_float = resized_img.astype(np.float32, copy=True)
         np.multiply(img_float, 1.0 / 255.0, out=img_float)
 
-        self._padded_img_buffer[0, 0, :new_h, :new_w] = img_float[:, :, 0]
-        self._padded_img_buffer[0, 1, :new_h, :new_w] = img_float[:, :, 1]
-        self._padded_img_buffer[0, 2, :new_h, :new_w] = img_float[:, :, 2]
+        self._padded_img_buffer[0, 0, pad_y:pad_y + new_h, pad_x:pad_x + new_w] = img_float[:, :, 0]
+        self._padded_img_buffer[0, 1, pad_y:pad_y + new_h, pad_x:pad_x + new_w] = img_float[:, :, 1]
+        self._padded_img_buffer[0, 2, pad_y:pad_y + new_h, pad_x:pad_x + new_w] = img_float[:, :, 2]
 
         return self._padded_img_buffer, new_w, new_h
 
     def postprocess(self, raw_output, orig_img_shape, resized_shape, conf_tresh=0.6):
-        detections = _postprocess_raw(raw_output, conf_thresh=conf_tresh, iou_thresh=0.6)
+        if self.semantic:
+            return self._semantic_tile_detections(raw_output, orig_img_shape, resized_shape, conf_tresh)
+
+        if self.keypoint_shape:
+            detections = decode_pose(raw_output, len(self.classes), self.keypoint_shape, conf_tresh,
+                                     self.end_to_end, _numpy_nms, keep_points=True)
+        else:
+            detections = _postprocess_raw(
+                raw_output,
+                conf_thresh=conf_tresh,
+                iou_thresh=0.6,
+                end2end=self.end2end
+            )
 
         orig_h, orig_w = orig_img_shape
         resized_w, resized_h = resized_shape
+
         scale_w = orig_w / resized_w
         scale_h = orig_h / resized_h
 
         results = []
-        for detection in detections:
-            if len(detection):
-                detection[:, 0] *= scale_w
-                detection[:, 1] *= scale_h
-                detection[:, 2] *= scale_w
-                detection[:, 3] *= scale_h
-                results.append(detection)
+
+        for det in detections:
+            if len(det):
+                if self.end2end or self.keypoint_shape:
+                    det[:, [0, 2]] -= (self.input_size[1] - resized_w) // 2
+                    det[:, [1, 3]] -= (self.input_size[0] - resized_h) // 2
+                if self.keypoint_shape:
+                    det[:, 6] = (det[:, 6] - (self.input_size[1] - resized_w) // 2) * scale_w
+                    det[:, 7] = (det[:, 7] - (self.input_size[0] - resized_h) // 2) * scale_h
+                    det[:, 6] = np.clip(det[:, 6], 0, orig_w)
+                    det[:, 7] = np.clip(det[:, 7], 0, orig_h)
+                det[:, 0] *= scale_w
+                det[:, 1] *= scale_h
+                det[:, 2] *= scale_w
+                det[:, 3] *= scale_h
+                if self.end2end or self.keypoint_shape:
+                    det[:, [0, 2]] = np.clip(det[:, [0, 2]], 0, orig_w)
+                    det[:, [1, 3]] = np.clip(det[:, [1, 3]], 0, orig_h)
+                results.append(det)
+
         return results
+
+    def _semantic_tile_detections(self, raw_output, orig_img_shape, resized_shape, conf_tresh):
+        """Convert transient semantic predictions to coarse boxes; gameplay only receives ordinary lists."""
+        orig_h, orig_w = orig_img_shape
+        new_w, new_h = resized_shape
+        pad_x = (self.input_size[1] - new_w) // 2
+        pad_y = (self.input_size[0] - new_h) // 2
+        crop = (0, slice(pad_y, pad_y + new_h), slice(pad_x, pad_x + new_w))
+        ids = raw_output[self.semantic_outputs['class_ids']][crop]
+        confidence = raw_output[self.semantic_outputs['confidence']][crop]
+        scale_x, scale_y = orig_w / new_w, orig_h / new_h
+        step_x = max(1, int(self.tile_size / scale_x))
+        step_y = max(1, int(self.tile_size / scale_y))
+        rows = []
+
+        for class_id, name in enumerate(self.semantic_names):
+            tile_name = _SEMANTIC_TILE_NAMES.get(name)
+            if tile_name is None:
+                continue
+            minimum = 0.0 if name == 'out_of_bounds' else max(
+                conf_tresh, {'rope_fence': .65, 'water': .75}.get(name, .60))
+            region = np.ascontiguousarray((ids == class_id) & (confidence >= minimum), dtype=np.uint8)
+            if not region.any():
+                continue
+            if name != 'out_of_bounds':
+                # Same small/weak-component rejection as the deployed semantic model.
+                n, labels, stats, _ = cv2.connectedComponentsWithStats(region, connectivity=8)
+                area = stats[:, cv2.CC_STAT_AREA]
+                mean = np.bincount(labels.ravel(), weights=confidence.ravel(), minlength=n) / np.maximum(area, 1)
+                keep = (area >= .0006 * new_w * new_h) & (mean >= .80)
+                keep[0] = False
+                region = keep[labels].astype(np.uint8)
+
+            x0, y0, width, height = cv2.boundingRect(region)
+            output_id = self.classes.index(tile_name)
+            # Each occupied cell produces one bounded rectangle, rather than one box around an entire lake/wall.
+            for y in range(y0 // step_y * step_y, y0 + height, step_y):
+                for x in range(x0 // step_x * step_x, x0 + width, step_x):
+                    cell = region[y:y + step_y, x:x + step_x]
+                    bx, by, bw, bh = cv2.boundingRect(cell)
+                    if not bw or not bh:
+                        continue
+                    score = float(confidence[y:y + step_y, x:x + step_x][cell > 0].mean())
+                    rows.append([int((x + bx) * scale_x), int((y + by) * scale_y),
+                                 min(orig_w, int(np.ceil((x + bx + bw) * scale_x))),
+                                 min(orig_h, int(np.ceil((y + by + bh) * scale_y))), score, output_id])
+
+        return [np.asarray(rows, dtype=np.float32).reshape(-1, 6)]
+
 
     def detect_objects(self, img, conf_tresh=0.6):
         orig_h, orig_w = img.shape[:2]
@@ -273,10 +391,15 @@ class Detect:
             for row in detection:
                 x1, y1, x2, y2 = int(row[0]), int(row[1]), int(row[2]), int(row[3])
                 class_id = int(row[5])
+                if self.classes is None or not 0 <= class_id < len(self.classes):
+                    continue
                 class_name = self.classes[class_id]
 
                 if class_id in self.ignore_classes or class_name in self.ignore_classes:
                     continue
-                results.setdefault(class_name, []).append([x1, y1, x2, y2])
+                box = [x1, y1, x2, y2]
+                if self.keypoint_shape and np.isfinite(row[6:8]).all() and (self.keypoint_shape[1] == 2 or row[8] >= .5):
+                    box = EntityBox(box, ground=(float(row[6]), float(row[7])))
+                results.setdefault(class_name, []).append(box)
 
         return results

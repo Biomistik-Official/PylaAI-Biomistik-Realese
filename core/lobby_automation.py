@@ -12,7 +12,9 @@ from common.utils import (
     load_toml_as_dict,
     find_template_center,
     resolve_brawler_name_alias,
+    load_brawlers_info,
 )
+from core.brawler_selection import BrawlerSelector
 
 debug = load_toml_as_dict("cfg/general_config.toml")['super_debug'] == "yes"
 gray_pixels_treshold = load_toml_as_dict("./cfg/bot_config.toml")['idle_pixels_minimum']
@@ -40,6 +42,17 @@ class LobbyAutomation:
             self.window_controller.click(int(535 * wr), int(615 * hr))
 
     def select_brawler(self, brawler):
+        config = load_toml_as_dict("cfg/general_config.toml")
+        if config.get("brawler_selection_mode", "search") == "legacy_scroll":
+            self._select_brawler_legacy(brawler)
+            return self.ensure_lobby_after_selection()
+        control = getattr(self, "control", None)
+        interrupted = (lambda: control.is_paused() or control.is_stopped()) if control else None
+        buttons = load_toml_as_dict("cfg/upstream_ui.toml").get("buttons", {})
+        return BrawlerSelector(self.window_controller, get_state, names=load_brawlers_info(),
+                               buttons=buttons, interrupted=interrupted).select(brawler)
+
+    def _select_brawler_legacy(self, brawler):
         self.window_controller.screenshot()
         wr = self.window_controller.width_ratio
         hr = self.window_controller.height_ratio

@@ -46,6 +46,7 @@ class DummyLobbyAutomation:
 
     def select_brawler(self, name):
         self.named_calls.append(name)
+        return True
 
 
 class PushAllTargetSwitchTest(unittest.TestCase):
@@ -79,12 +80,15 @@ class PushAllTargetSwitchTest(unittest.TestCase):
         manager.Lobby_automation = DummyLobbyAutomation()
         manager.send_webhook_notification = lambda *args, **kwargs: None
         manager.push_all_needs_selection = False
+        manager.stop_after_post_match_rewards = False
+        manager.completion_notification_sent = False
+        manager.selected_brawler_name = "first"
         return manager
 
     @patch.object(StageManager, "refresh_push_all_trophies_from_api", return_value=False)
-    @patch("stage_manager.save_brawler_data")
-    @patch("stage_manager.time.sleep", return_value=None)
-    @patch("stage_manager.get_state", return_value="lobby")
+    @patch("core.stage_manager.save_brawler_data")
+    @patch("core.stage_manager.time.sleep", return_value=None)
+    @patch("core.stage_manager.get_state", return_value="lobby")
     def test_push_all_targets_switch_by_lowest_trophy_sort(self, *_):
         for target in (250, 500, 750, 1000):
             with self.subTest(target=target):
@@ -94,14 +98,15 @@ class PushAllTargetSwitchTest(unittest.TestCase):
 
                 self.assertEqual(manager.brawlers_pick_data[0]["brawler"], "second")
                 self.assertEqual(manager.Trophy_observer.changed_to, 0)
-                self.assertEqual(manager.Lobby_automation.lowest_calls, 1)
-                self.assertEqual(manager.Lobby_automation.named_calls, [])
+                self.assertEqual(manager.Lobby_automation.lowest_calls, 0)
+                self.assertEqual(manager.Lobby_automation.named_calls, ["second"])
+
                 self.assertIn("Q", manager.window_controller.pressed)
 
     @patch.object(StageManager, "refresh_push_all_trophies_from_api", return_value=False)
-    @patch("stage_manager.save_brawler_data")
-    @patch("stage_manager.time.sleep", return_value=None)
-    @patch("stage_manager.get_state", return_value="lobby")
+    @patch("core.stage_manager.save_brawler_data")
+    @patch("core.stage_manager.time.sleep", return_value=None)
+    @patch("core.stage_manager.get_state", return_value="lobby")
     def test_push_all_500_resorts_and_skips_already_completed_rows(self, *_):
         manager = self.make_manager(500)
         manager.brawlers_pick_data = [
@@ -151,14 +156,15 @@ class PushAllTargetSwitchTest(unittest.TestCase):
 
         self.assertEqual(manager.brawlers_pick_data[0]["brawler"], "lowest")
         self.assertEqual(manager.Trophy_observer.changed_to, 120)
-        self.assertEqual(manager.Lobby_automation.lowest_calls, 1)
+        self.assertEqual(manager.Lobby_automation.lowest_calls, 0)
+        self.assertEqual(manager.Lobby_automation.named_calls, [manager.brawlers_pick_data[0]["brawler"]])
         self.assertEqual([row["brawler"] for row in manager.brawlers_pick_data], ["lowest", "almost_done"])
 
-    @patch("stage_manager.save_brawler_data")
-    @patch("stage_manager.fetch_brawl_stars_player")
-    @patch("stage_manager.load_brawl_stars_api_config")
-    @patch("stage_manager.time.sleep", return_value=None)
-    @patch("stage_manager.get_state", return_value="lobby")
+    @patch("core.stage_manager.save_brawler_data")
+    @patch("core.stage_manager.fetch_brawl_stars_player")
+    @patch("core.stage_manager.load_brawl_stars_api_config")
+    @patch("core.stage_manager.time.sleep", return_value=None)
+    @patch("core.stage_manager.get_state", return_value="lobby")
     def test_push_all_switches_when_api_says_current_reached_target(
             self,
             _mock_get_state,
@@ -186,13 +192,14 @@ class PushAllTargetSwitchTest(unittest.TestCase):
 
         self.assertEqual(manager.brawlers_pick_data[0]["brawler"], "second")
         self.assertEqual(manager.Trophy_observer.current_trophies, 25)
-        self.assertEqual(manager.Lobby_automation.lowest_calls, 1)
+        self.assertEqual(manager.Lobby_automation.lowest_calls, 0)
+        self.assertEqual(manager.Lobby_automation.named_calls, [manager.brawlers_pick_data[0]["brawler"]])
 
-    @patch("stage_manager.save_brawler_data")
-    @patch("stage_manager.fetch_brawl_stars_player")
-    @patch("stage_manager.load_brawl_stars_api_config")
-    @patch("stage_manager.time.sleep", return_value=None)
-    @patch("stage_manager.get_state", return_value="lobby")
+    @patch("core.stage_manager.save_brawler_data")
+    @patch("core.stage_manager.fetch_brawl_stars_player")
+    @patch("core.stage_manager.load_brawl_stars_api_config")
+    @patch("core.stage_manager.time.sleep", return_value=None)
+    @patch("core.stage_manager.get_state", return_value="lobby")
     def test_push_all_keeps_current_brawler_after_api_refresh_until_target(
             self,
             _mock_get_state,
@@ -244,11 +251,11 @@ class PushAllTargetSwitchTest(unittest.TestCase):
         self.assertEqual(manager.Trophy_observer.current_trophies, 560)
         self.assertEqual(manager.Lobby_automation.lowest_calls, 0)
 
-    @patch("stage_manager.save_brawler_data")
-    @patch("stage_manager.fetch_brawl_stars_player")
-    @patch("stage_manager.load_brawl_stars_api_config")
-    @patch("stage_manager.time.sleep", return_value=None)
-    @patch("stage_manager.get_state", return_value="lobby")
+    @patch("core.stage_manager.save_brawler_data")
+    @patch("core.stage_manager.fetch_brawl_stars_player")
+    @patch("core.stage_manager.load_brawl_stars_api_config")
+    @patch("core.stage_manager.time.sleep", return_value=None)
+    @patch("core.stage_manager.get_state", return_value="lobby")
     def test_push_all_api_refresh_does_not_roll_current_trophies_backwards(
             self,
             _mock_get_state,
@@ -300,11 +307,11 @@ class PushAllTargetSwitchTest(unittest.TestCase):
         self.assertEqual(manager.Trophy_observer.current_trophies, 48)
         self.assertEqual(manager.Lobby_automation.lowest_calls, 0)
 
-    @patch("stage_manager.save_brawler_data")
-    @patch("stage_manager.fetch_brawl_stars_player")
-    @patch("stage_manager.load_brawl_stars_api_config")
-    @patch("stage_manager.time.sleep", return_value=None)
-    @patch("stage_manager.get_state", return_value="lobby")
+    @patch("core.stage_manager.save_brawler_data")
+    @patch("core.stage_manager.fetch_brawl_stars_player")
+    @patch("core.stage_manager.load_brawl_stars_api_config")
+    @patch("core.stage_manager.time.sleep", return_value=None)
+    @patch("core.stage_manager.get_state", return_value="lobby")
     def test_push_all_forces_token_refresh_after_access_denied(
             self,
             _mock_get_state,

@@ -1,0 +1,6 @@
+# Current brawler-search menu, PylaAI upstream 763c389; coordinates at 1920x1080.
+[buttons]
+brawlers_menu = [110, 490]
+brawler_search = [1550, 50]
+first_brawler_icon = [550, 300]
+select_brawler = [150, 950]
