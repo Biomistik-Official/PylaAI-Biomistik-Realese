@@ -6,35 +6,35 @@
   <meta name="pyla-ui-token" content="{{ ui_token }}">
   <meta name="color-scheme" content="dark">
   <title>PylaAI · Biomistik</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%23656cff'/%3E%3Ctext x='12' y='29' font-size='28' font-family='Arial' fill='white'%3EP%3C/text%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%23edc34f'/%3E%3Ctext x='12' y='29' font-size='28' font-family='Arial' fill='%23141415'%3EP%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <script defer src="{{ url_for('static', filename='setup-flow.js') }}"></script>
   <script defer src="{{ url_for('static', filename='app.js') }}"></script>
 </head>
 <body>
   <aside class="sidebar">
-    <a class="brand" href="#dashboard"><span class="brand-mark">P<span>·</span></span><span>Pyla<span class="brand-ai">AI</span><small>BIOMISTIK EDITION</small></span></a>
-    <div class="nav-caption">РАБОЧЕЕ ПРОСТРАНСТВО</div>
+    <a class="brand" href="#dashboard"><span class="brand-mark">P</span><span>Pyla<span class="brand-ai">AI</span><small>Biomistik</small></span></a>
+    <div class="nav-caption">Управление</div>
     <nav aria-label="Главное меню">
-      <a href="#dashboard" data-page="dashboard"><span aria-hidden="true">◫</span>Обзор</a>
-      <a href="#queue" data-page="queue"><span aria-hidden="true">☷</span>Очередь бойцов<span class="nav-count" id="nav-queue-count">0</span></a>
-      <a href="#playstyles" data-page="playstyles"><span aria-hidden="true">◇</span>Стили игры</a>
-      <a href="#history" data-page="history"><span aria-hidden="true">◷</span>История матчей</a>
-      <a href="#logs" data-page="logs"><span aria-hidden="true">⌘</span>Логи</a>
-      <div class="nav-caption">КОНФИГУРАЦИЯ</div>
-      <a href="#settings" data-page="settings"><span aria-hidden="true">⚙</span>Настройки</a>
-      <a href="#integrations" data-page="integrations"><span aria-hidden="true">⌁</span>Интеграции</a>
+      <a href="#dashboard" data-page="dashboard"><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#overview"></use></svg>Обзор</a>
+      <a href="#queue" data-page="queue"><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#queue"></use></svg>Очередь бойцов<span class="nav-count" id="nav-queue-count">0</span></a>
+      <a href="#playstyles" data-page="playstyles"><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#styles"></use></svg>Стили игры</a>
+      <a href="#history" data-page="history"><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#history"></use></svg>История матчей</a>
+      <a href="#logs" data-page="logs"><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#logs"></use></svg>Логи</a>
+      <div class="nav-caption">Конфигурация</div>
+      <a href="#settings" data-page="settings"><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#settings"></use></svg>Настройки</a>
+      <a href="#integrations" data-page="integrations"><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#integrations"></use></svg>Интеграции</a>
     </nav>
-    <div class="sidebar-bottom"><span class="local-dot"></span> Локальное подключение<small id="version-label">PylaAI · Biomistik</small><a href="https://github.com/Biomistik-Official/PylaAI-Biomistik-Realese" target="_blank" rel="noreferrer">Исходный код ↗</a></div>
+    <div class="sidebar-bottom"><span class="local-dot"></span> Локальное подключение<small id="version-label">PylaAI · Biomistik</small><a href="https://github.com/Biomistik-Official/PylaAI-Biomistik-Realese" target="_blank" rel="noreferrer">Исходный код</a></div>
   </aside>
   <div class="workspace">
     <header class="topbar">
       <div class="breadcrumb">Рабочее пространство<span>/</span><strong id="page-title">Обзор</strong></div>
-      <div class="topbar-right"><a id="setup-return" class="button ghost small" href="#setup-device">К подготовке запуска</a><label class="sr-only" for="instance-select">Экземпляр</label><select id="instance-select"><option value="1">Экземпляр 01</option></select><button class="icon-button" id="add-instance" title="Добавить экземпляр" aria-label="Добавить экземпляр">＋</button></div>
+      <div class="topbar-right"><a id="setup-return" class="button ghost small" href="#setup-device">К подготовке запуска</a><label class="sr-only" for="instance-select">Экземпляр</label><select id="instance-select"><option value="1">Экземпляр 01</option></select><button class="icon-button" id="add-instance" title="Добавить экземпляр" aria-label="Добавить экземпляр"><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#plus"></use></svg></button></div>
     </header>
     <div class="runtime-bar">
       <div><span id="runtime-dot" class="status-dot"></span><strong id="runtime-label">Подключение…</strong><span class="runtime-detail" id="runtime-detail"></span></div>
-      <div class="runtime-actions"><button id="pause-bot" class="button secondary">Ⅱ Пауза</button><button id="stop-bot" class="button secondary">■ Остановить</button><button id="start-bot" class="button primary">▶ Запустить</button></div>
+      <div class="runtime-actions"><button id="pause-bot" class="button secondary"><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#pause"></use></svg> Пауза</button><button id="stop-bot" class="button secondary"><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#stop"></use></svg> Остановить</button><button id="start-bot" class="button primary"><svg class="icon" aria-hidden="true"><use href="/static/icons.svg#play"></use></svg> Запустить</button></div>
     </div>
     <section id="setup-progress" class="setup-progress" aria-label="Подготовка запуска" hidden></section>
     <main id="content" tabindex="-1"><div class="empty-state">Загружаем рабочее пространство…</div></main>
