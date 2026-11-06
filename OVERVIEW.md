@@ -2,6 +2,8 @@
 
 Windows / Python 3.11 application using OpenCV, ONNX Runtime, ADB and scrcpy. Flask serves dependency-free browser menus on loopback. CustomTkinter remains available with `--legacy`.
 
+Install both `requirements.txt` and `requirements-web.txt` into a new Python 3.11 venv. The `setuptools<82` constraint is required because scrcpy-client's adbutils dependency imports `pkg_resources`, which newer setuptools no longer provides. See README for another-PC and multi-account setup.
+
 ## Entry points
 
 - `start-browser.bat` uses `.venv` when present, then runs `PylaLauncher.py`.
@@ -30,3 +32,5 @@ Browser workers receive `PYLAAI_CONTROL_PATH` explicitly for Windows venv PID di
 ## Verification and limits
 
 Run `python -m unittest discover -s tests -q`, `node tests/test_setup_flow.cjs`, `node --check webui/static/app.js`, and `git diff --check` from the repository root. Models and game-menu selection have local smoke coverage; full gameplay and clean-machine installation remain unverified. No rebuilt installer is included. See `docs/UPSTREAM-MIGRATION.md` and `.factory/threat-model.md` for migration and trust boundaries.
+
+Publication verification on 2026-11-06 used a newly created Python 3.11 venv on the existing Windows PC: all requirements installed, `pip check` passed, 199 tests ran (198 passed, one skipped), the real panel served HTTP 200 with 109 catalog entries and idle profiles, and both current models inferred through CPU and DirectML. See `docs/PUBLICATION-2026-11-06.md`. Five concurrent matches and a separate clean Windows host were not tested.

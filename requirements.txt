@@ -67,6 +67,8 @@ rsa==4.9.1
 scikit-image==0.26.0
 scipy==1.17.1
 scrcpy-client @ https://github.com/leng-yue/py-scrcpy-client/archive/refs/tags/v0.5.0.zip#sha256=5206e5a6e08ae4f2e14b3ab06a8059f136cf147168521216aae5d1bdc6ad1bc5
+# adbutils 1.x (used by scrcpy-client) imports pkg_resources, removed in setuptools 82.
+setuptools<82
 shapely==2.1.2
 six==1.17.0
 sympy==1.14.0
