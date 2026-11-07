@@ -125,6 +125,7 @@ class BrawlerApiAutofillTest(unittest.TestCase):
             with open(path, "w", encoding="utf-8") as f:
                 f.write(
                     'api_token = "OLD_TOKEN"\n'
+                    'player_source = "direct"\n'
                     'player_tag = "#PLAYER"\n'
                     'auto_refresh_token = true\n'
                     'developer_email = "user@example.com"\n'
@@ -149,6 +150,7 @@ class BrawlerApiAutofillTest(unittest.TestCase):
             with open(path, "w", encoding="utf-8") as f:
                 f.write(
                     'api_token = "OLD_TOKEN"\n'
+                    'player_source = "direct"\n'
                     'player_tag = "#PLAYER"\n'
                     'auto_refresh_token = true\n'
                     'developer_email = "user@example.com"\n'

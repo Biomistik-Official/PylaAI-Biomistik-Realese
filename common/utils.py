@@ -354,7 +354,12 @@ def get_config_player_tag(config):
     return tag
 
 
-def fetch_brawl_stars_player(api_token, player_tag, timeout=15):
+def fetch_brawl_stars_player(api_token, player_tag, timeout=15, source="direct"):
+    if source == "relay":
+        from common.player_client import fetch_relay_player
+        return fetch_relay_player(player_tag, timeout)
+    if source != "direct":
+        raise ValueError("Unknown player data source")
     api_token = _extract_api_token(api_token)
     cleaned_tag = str(player_tag).strip().upper()
     if not api_token:
@@ -408,6 +413,9 @@ def load_brawl_stars_api_config(file_path="cfg/brawl_stars_api.toml", force_refr
         config = load_toml_as_dict(file_path)
         config = dict(config)
         config["player_tag"] = get_config_player_tag(config)
+        config.setdefault("player_source", "relay")
+        if config["player_source"] != "direct":
+            return config
         try:
             if force_refresh:
                 return refresh_brawl_stars_api_token_if_enabled(config, file_path, force=True)
@@ -421,6 +429,7 @@ def load_brawl_stars_api_config(file_path="cfg/brawl_stars_api.toml", force_refr
 
     if not os.path.exists(file_path):
         return {
+            "player_source": "relay",
             "player_tag": get_config_player_tag({}),
             "timeout_seconds": 15,
             "auto_refresh_token": True,
@@ -441,6 +450,11 @@ def load_brawl_stars_api_config(file_path="cfg/brawl_stars_api.toml", force_refr
         config["player_tag"] = str(load_toml_as_dict("cfg/general_config.toml").get("player_tag", "")).strip()
 
     config["player_tag"] = get_config_player_tag(config)
+
+    source_match = re.search(r'player_source\s*=\s*"([^"]*)"', text)
+    config["player_source"] = source_match.group(1) if source_match else "relay"
+    if config["player_source"] != "direct":
+        return config
 
     timeout_match = re.search(r"timeout_seconds\s*=\s*(\d+)", text)
     if timeout_match:

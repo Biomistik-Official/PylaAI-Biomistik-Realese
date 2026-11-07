@@ -117,11 +117,12 @@ class SelectBrawler:
             api_config = load_brawl_stars_api_config(config_path)
             self.player_tag = api_config.get("player_tag", "N/A")
             
-            if api_config.get("api_token") and self.player_tag and self.player_tag != "N/A":
+            if (api_config.get("player_source", "relay") == "relay" or api_config.get("api_token")) and self.player_tag and self.player_tag != "N/A":
                 player_data = fetch_brawl_stars_player(
                     api_config.get("api_token", "").strip(),
                     self.player_tag.strip(),
                     int(api_config.get("timeout_seconds", 15)),
+                    source=api_config.get("player_source", "relay"),
                 )
                 self.player_name = player_data.get("name", "Unknown")
                 
@@ -525,6 +526,7 @@ class SelectBrawler:
             api_config.get("api_token", "").strip(),
             current_tag,
             int(api_config.get("timeout_seconds", 15)),
+            source=api_config.get("player_source", "relay"),
         )
         known_by_normalized_name = {
             normalize_brawler_name(brawler): brawler

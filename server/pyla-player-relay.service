@@ -1,0 +1,44 @@
+[Unit]
+Description=Pyla public player data relay
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=pyla-relay
+Group=pyla-relay
+WorkingDirectory=/opt/pyla-player-relay
+EnvironmentFile=/etc/pyla-player-relay.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=RELAY_BUDGET_PATH=/var/lib/pyla-player-relay/budget.sqlite
+# Exactly one worker: threads share global admission, cache and cooldown state.
+ExecStart=/opt/pyla-player-relay/venv/bin/gunicorn --bind 127.0.0.1:8791 --workers 1 --threads 4 --timeout 30 --limit-request-line 1024 --limit-request-fields 32 --limit-request-field_size 2048 --forwarded-allow-ips= --error-logfile - player_relay:application()
+Restart=on-failure
+RestartSec=5
+StateDirectory=pyla-player-relay
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectKernelLogs=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+InaccessiblePaths=-/srv -/var/www -/opt/osint -/etc/letsencrypt
+MemoryMax=192M
+TasksMax=32
+LimitNOFILE=1024
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target

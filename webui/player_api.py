@@ -15,6 +15,7 @@ MESSAGES = {
     'credentials': 'Укажи почту и пароль портала разработчика либо готовый API-токен. API можно пропустить и выбрать бойцов вручную.',
     'connection': 'Не удалось связаться с Brawl Stars API. Проверь подключение и повтори загрузку.',
     'changed': 'Настройки аккаунта изменились во время загрузки. Повтори вход с текущими данными.',
+    'rate': 'Достигнут лимит сервиса данных. Повтори позже; суточный лимит сбрасывается в 00:00 UTC.',
 }
 
 
@@ -36,10 +37,30 @@ def load_player(root, instance):
     token = config.get('api_token', '')
     credentials = bool(config.get('developer_email') and config.get('developer_password'))
     timeout = int(config.get('timeout_seconds', 15))
+    if config.get('player_source', 'relay') == 'relay':
+        from common.player_client import fetch_relay_player, RelayError
+        try:
+            player = fetch_relay_player(tag, timeout)
+            latest = store.read_config(instance, 'api')
+            if any(latest.get(key) != config.get(key) for key in ('player_tag', 'player_source')):
+                raise PlayerError('changed')
+            return player
+        except RelayError as error:
+            raise PlayerError(error.code if error.code in MESSAGES else 'connection') from None
+        except ValueError as error:
+            if isinstance(error, PlayerError):
+                raise
+            raise PlayerError('tag') from None
+    if config.get('player_source') != 'direct':
+        raise PlayerError('connection')
     try:
         if token:
             try:
-                return fetch_brawl_stars_player(token, tag, timeout)
+                player = fetch_brawl_stars_player(token, tag, timeout)
+                latest = store.read_config(instance, 'api')
+                if any(latest.get(key) != config.get(key) for key in ('player_tag', 'player_source', 'api_token', 'developer_email', 'developer_password')):
+                    raise PlayerError('changed')
+                return player
             except RuntimeError as error:
                 if 'accessDenied' not in str(error) or not credentials:
                     raise
@@ -51,7 +72,7 @@ def load_player(root, instance):
             str(store.config_dir(instance) / 'brawl_stars_api.toml'), force=True, persist=False)
         player = fetch_brawl_stars_player(refreshed.get('api_token', ''), tag, timeout)
         latest = store.read_config(instance, 'api')
-        if any(latest.get(key) != config.get(key) for key in ('player_tag', 'developer_email', 'developer_password', 'api_token')):
+        if any(latest.get(key) != config.get(key) for key in ('player_tag', 'player_source', 'developer_email', 'developer_password', 'api_token')):
             raise PlayerError('changed')
         updates = {'api_token': refreshed['api_token']}
         if 'last_public_ip' in config:

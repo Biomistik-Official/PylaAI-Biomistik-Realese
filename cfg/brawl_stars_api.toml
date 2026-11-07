@@ -1,4 +1,5 @@
 player_tag = ""
+player_source = "relay"
 timeout_seconds = 15
 auto_refresh_token = false
 developer_email = ""

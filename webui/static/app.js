@@ -7,7 +7,7 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, c => ({'&'
 const titles = {dashboard:'Обзор',queue:'Очередь бойцов',playstyles:'Стили игры',history:'История матчей',logs:'Логи',settings:'Настройки',integrations:'Интеграции',review:'Проверка перед запуском'};
 const states = {idle:'Не запущен',running:'Работает',paused:'На паузе',stopping:'Останавливается',stopped:'Остановлен',error:'Ошибка запуска',external:'Другой лаунчер'};
 const sections = {general:'Общие',bot:'Игра и движение',timers:'Таймеры',telegram:'Telegram',discord:'Discord',api:'Brawl Stars API'};
-const choiceLabels = {'upstream-763c389':'Актуальные · 31.10.2026',legacy:'Прежние модели',search:'Поиск по имени',legacy_scroll:'Листание · прежний интерфейс'};
+const choiceLabels = {relay:'По тегу · без регистрации',direct:'Свой Brawl Stars API','upstream-763c389':'Актуальные · 31.10.2026',legacy:'Прежние модели',search:'Поиск по имени',legacy_scroll:'Листание · прежний интерфейс'};
 const state = {instance:1,instances:[],catalog:[],details:[],players:{},rows:[],devices:null,page:'dashboard',tab:'general',fields:[],clearSecrets:new Set(),busy:false,requestId:0,step:0,selectedBrawler:'',filter:'',accountBusy:false};
 const active = () => ['running','paused','stopping','external'].includes(current()?.state);
 const current = () => state.instances.find(i => i.instance === state.instance);
@@ -207,7 +207,7 @@ const labels={
   discord_bot_token:'Токен Discord-бота',discord_control_user_id:'ID владельца в Discord',discord_control_channel_id:'ID канала управления',discord_control_guild_id:'ID сервера управления',discord_control_enabled:'Управление через Discord',
   webhook_url:'Webhook Discord',discord_id:'ID пользователя Discord',username:'Имя отправителя',personal_webhook:'Личный webhook',send_match_summary:'Итоги после матча',include_screenshot:'Прикладывать скриншот',
   ping_when_stuck:'Уведомлять о зависании',ping_when_target_is_reached:'Уведомлять о достижении цели',ping_every_x_match:'Уведомлять каждые N матчей',ping_every_x_minutes:'Уведомлять каждые N минут',
-  player_tag:'Тег игрока',api_token:'Токен Brawl Stars API',developer_email:'Email портала разработчика',developer_password:'Пароль портала разработчика',auto_refresh_token:'Обновлять API-токен автоматически',
+  player_source:'Источник данных аккаунта',player_tag:'Тег игрока',api_token:'Токен Brawl Stars API',developer_email:'Email портала разработчика',developer_password:'Пароль портала разработчика',auto_refresh_token:'Обновлять API-токен автоматически',
   timeout_seconds:'Таймаут API, сек.',delete_all_tokens:'Удалять все токены аккаунта при обновлении',emulator_autorestart:'Восстанавливать эмулятор автоматически',directml_device_id:'Адаптер DirectML',
   screenshot_cleanup_max_age_hours:'Срок хранения скриншотов, часов',screenshot_cleanup_max_files:'Максимум скриншотов',proxy_enabled:'Использовать прокси',
   long_press_star_drop:'Открывать награды долгим нажатием',capture_bad_vision_frames:'Сохранять кадры с ошибками распознавания',bad_vision_capture_dir:'Папка кадров для диагностики',bad_vision_capture_interval:'Интервал сохранения кадров, сек.',bad_vision_capture_max:'Максимум диагностических кадров',
@@ -219,7 +219,7 @@ const labels={
   teammate_follow_min_distance:'Минимальная дистанция до союзника',teammate_follow_max_distance:'Максимальная дистанция до союзника',teammate_combat_regroup_distance:'Дистанция возвращения к команде',teammate_combat_bias:'Притяжение к команде в бою',seconds_to_hold_attack_after_reaching_max:'Удерживать атаку после зарядки, сек.',match_warmup_seconds:'Задержка после начала матча, сек.',strafe_interval:'Интервал смены стрейфа, сек.',strafe_blend:'Сила стрейфа',combat_dodge_blend:'Сила уклонения в бою',combat_dodge_jitter_degrees:'Разброс направления уклонения',projectile_speed_px_s:'Скорость снаряда, пикселей/сек.',roam_direction_hold_time:'Удерживать направление поиска, сек.',roam_center_bias:'Притяжение к центру карты',retreat_strafe_fraction:'Доля стрейфа при отступлении',approach_flank_blend:'Сила обхода противника',multi_enemy_flee_weight:'Вес угрозы нескольких противников',angle_smooth_factor:'Сглаживание направления',
   super:'Проверка супера, сек.',hypercharge:'Проверка гиперзаряда, сек.',gadget:'Проверка гаджета, сек.',wall_detection:'Проверка стен, сек.',no_detection_proceed:'Ожидание при потере распознавания, сек.',state_check:'Проверка экрана игры, сек.',idle:'Проверка бездействия, сек.',check_if_brawl_stars_crashed:'Проверка состояния игры, сек.',
 };
-const help={max_ips:'0 — без ограничения.',run_for_minutes:'0 — без ограничения времени.',emulator_port:'Порт устройства ADB из настроек эмулятора. 5037 — порт сервера, он не подходит.',telegram_control_user_id:'Именно ID пользователя, которому разрешено управлять ботом.',discord_control_user_id:'ID пользователя Discord, которому разрешено управлять ботом.',developer_password:'Пустое поле сохраняет прежний пароль.',delete_all_tokens:'Удаляет также ключи других приложений. Обычно оставляй выключенным.',player_tag:'Тег Brawl Stars, например #ABC123.',api_token:'Ключ официального API, привязанный к твоему публичному IP.'};
+const help={max_ips:'0 — без ограничения.',run_for_minutes:'0 — без ограничения времени.',emulator_port:'Порт устройства ADB из настроек эмулятора. 5037 — порт сервера, он не подходит.',telegram_control_user_id:'Именно ID пользователя, которому разрешено управлять ботом.',discord_control_user_id:'ID пользователя Discord, которому разрешено управлять ботом.',developer_password:'Пустое поле сохраняет прежний пароль.',delete_all_tokens:'Удаляет также ключи других приложений. Обычно оставляй выключенным.',player_tag:'Тег из профиля Brawl Stars, например #RJC8VGR2P.',api_token:'Ключ официального API, привязанный к твоему публичному IP.'};
 
 function fieldHtml(field,index) {
   const id=`field-${index}`, title=labels[field.key] || field.key.replaceAll('_',' ');
@@ -238,15 +238,20 @@ function renderSettings() {
   const integrations=state.page==='integrations';
   const available=integrations?['telegram','discord','api']:['general','bot','timers'];
   let intro=integrations?'Уведомления, удалённое управление и данные твоего аккаунта.':'Параметры игры, эмулятора и производительности.';
-  const advice=state.tab==='api'?'Укажи тег игрока и API-токен либо данные портала разработчика для автоматического обновления ключа.':state.tab==='telegram'?'Создай бота через @BotFather. Для управления укажи токен и свой ID пользователя.':state.tab==='discord'?'Укажи webhook для уведомлений. Для команд управления добавь токен бота и ID владельца.':'';
+  const direct=state.fields.find(field=>field.key==='player_source')?.value==='direct';
+  const advice=state.tab==='api'?(direct?'Для собственного API укажи тег и токен либо данные портала разработчика.':'Введи тег из профиля Brawl Stars. Регистрация разработчика и пароль не нужны. Тег передаётся сервису Pyla для загрузки открытых данных аккаунта.'):state.tab==='telegram'?'Создай бота через @BotFather. Для управления укажи токен и свой ID пользователя.':state.tab==='discord'?'Укажи webhook для уведомлений. Для команд управления добавь токен бота и ID владельца.':'';
   const guided=state.step===1;
   const player=state.players[state.instance];
-  const visibleFields=guided?['player_tag','developer_email','developer_password','api_token']:null;
-  $('#content').innerHTML=heading(guided?'Подключи аккаунт или пропусти этот шаг':integrations?'Интеграции':'Настройки экземпляра',guided?'Вход загрузит твоих бойцов и текущие трофеи. Для ручного выбора нажми «Продолжить без API».':intro)+(guided?'':`<div class="pills">${available.map(section=>`<button data-action="tab" data-tab="${section}" class="${state.tab===section?'active':''}">${sections[section]}</button>`).join('')}</div>`)+
+  const visibleFields=state.tab==='api'?(!direct?['player_tag',...(guided?[]:['player_source','timeout_seconds'])]:guided?['player_tag','developer_email','developer_password','api_token']:null):null;
+  $('#content').innerHTML=heading(guided?'Подключи аккаунт или пропусти этот шаг':integrations?'Интеграции':'Настройки экземпляра',guided?'Загрузка покажет твоих бойцов и текущие трофеи. Для ручного выбора нажми «Продолжить без API».':intro)+(guided?'':`<div class="pills">${available.map(section=>`<button data-action="tab" data-tab="${section}" class="${state.tab===section?'active':''}">${sections[section]}</button>`).join('')}</div>`)+
     (guided&&player?`<div class="notice success">Аккаунт подключён · доступно бойцов: ${player.brawlers?.length || 0}.</div>`:'')+
     (active()?'<div class="notice">Чтобы изменить настройки, сначала останови этот экземпляр.</div>':'')+(advice?`<div class="notice">${advice}</div>`:'')+
-    `<form id="settings-form" class="panel"><div class="panel-heading"><h2>${sections[state.tab]}</h2><small>Настройки · ${instanceName(state.instance)}</small></div><div class="panel-body settings-grid">${state.fields.map((field,index)=>!visibleFields||visibleFields.includes(field.key)?fieldHtml(field,index):'').join('')}</div><div class="form-footer"><span class="muted">Пустые поля токенов и паролей сохраняют прежние значения.</span><div class="inline"><button class="button secondary" ${active()||state.accountBusy?'disabled':''}>Сохранить изменения</button>${state.tab==='api'?`<button type="button" class="button primary" data-action="load-player" ${active()||state.accountBusy?'disabled':''}>Войти и загрузить бойцов</button>`:''}</div></div></form>`+
+    `<form id="settings-form" class="panel"><div class="panel-heading"><h2>${sections[state.tab]}</h2><small>Настройки · ${instanceName(state.instance)}</small></div><div class="panel-body settings-grid">${state.fields.map((field,index)=>!visibleFields||visibleFields.includes(field.key)?fieldHtml(field,index):'').join('')}</div><div class="form-footer"><span class="muted">${state.tab==='api'&&!direct?'Для загрузки достаточно тега игрока.':'Пустые поля токенов и паролей сохраняют прежние значения.'}</span><div class="inline"><button class="button secondary" ${active()||state.accountBusy?'disabled':''}>Сохранить изменения</button>${state.tab==='api'?`<button type="button" class="button primary" data-action="load-player" ${active()||state.accountBusy?'disabled':''}>Загрузить бойцов</button>`:''}</div></div></form>`+
     (guided?'<div class="setup-links"><a href="#integrations">Дополнительные настройки API и интеграций</a></div>':'');
+  if(state.tab==='api') {
+    const index=state.fields.findIndex(field=>field.key==='player_source');
+    $(`#field-${index}`)?.addEventListener('change',()=>safely(async()=>{if(await saveSettings())renderSettings();}));
+  }
   $('#settings-form').addEventListener('submit',event=>{event.preventDefault();safely(async()=>{
     if(!await saveSettings())return;renderSettings();await refreshInstances();toast('Настройки сохранены.');
   });});
@@ -259,7 +264,7 @@ async function saveSettings() {
     if(!input || field.key==='pyla_version') return;
     values[field.key]=field.type==='bool'?input.checked:field.type==='list'?JSON.parse(input.value):['int','float'].includes(field.type)?Number(input.value):input.value;
   });
-  const changedAccount=tab==='api'&&Object.entries(values).some(([key,value])=>key==='player_tag'?value!==state.fields.find(field=>field.key===key)?.value:['developer_email','developer_password','api_token'].includes(key)&&Boolean(value));
+  const changedAccount=tab==='api'&&Object.entries(values).some(([key,value])=>['player_tag','player_source'].includes(key)?value!==state.fields.find(field=>field.key===key)?.value:['developer_email','developer_password','api_token'].includes(key)&&Boolean(value));
   const response=await api(`/api/instances/${instance}/settings/${tab}`,'PUT',{values,clear_secrets:[...state.clearSecrets]});
   if(changedAccount || state.clearSecrets.size) delete state.players[instance];
   if(instance!==state.instance || tab!==state.tab || view!==state.requestId) return false;

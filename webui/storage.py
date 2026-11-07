@@ -20,6 +20,7 @@ SECTIONS = {
 }
 SECRET_PATTERN = re.compile(r'token|password|email|webhook|personal_webhook', re.I)
 CHOICES = {
+    'player_source': ['relay', 'direct'],
     'vision_model_profile': ['upstream-763c389', 'legacy'],
     'brawler_selection_mode': ['search', 'legacy_scroll'],
     'current_emulator': ['LDPlayer', 'MuMu', 'BlueStacks', 'NoxPlayer'],
@@ -79,6 +80,8 @@ class ProjectStore:
         if section == 'general':
             config.setdefault('vision_model_profile', 'upstream-763c389')
             config.setdefault('brawler_selection_mode', 'search')
+        if section == 'api':
+            config.setdefault('player_source', 'relay')
         return config
 
     def settings(self, instance, section):

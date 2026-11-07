@@ -596,7 +596,8 @@ class Hub:
                     except Exception:
                         api_cfg = dict(load_toml_as_dict(cfg_path))
                     token = api_cfg.get("api_token", "")
-                    data = fetch_brawl_stars_player(token, tag_raw, timeout=10)
+                    data = fetch_brawl_stars_player(token, tag_raw, timeout=10,
+                                                    source=api_cfg.get("player_source", "relay"))
                     name = data.get("name", "Unknown")
                     tag_ret = data.get("tag", tag_raw)
                     # Save tag to instance config

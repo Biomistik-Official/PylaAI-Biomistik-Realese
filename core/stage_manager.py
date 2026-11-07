@@ -352,6 +352,7 @@ class StageManager:
             api_config.get("api_token", "").strip(),
             api_config.get("player_tag", "").strip(),
             int(api_config.get("timeout_seconds", 15)),
+            source=api_config.get("player_source", "relay"),
         )
 
     def select_queued_brawler(self):

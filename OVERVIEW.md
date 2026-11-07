@@ -12,7 +12,8 @@ Install both `requirements.txt` and `requirements-web.txt` into a new Python 3.1
 - `webui/app.py` authenticates API requests with a per-process session token and validates Host/Origin.
 - `webui/storage.py` validates and atomically saves settings/queues, hides secrets and isolates profiles.
 - `webui/runtime.py` manages worker subprocesses, pause/stop state and redacted bounded logs.
-- `webui/player_api.py` isolates developer-portal/player loading. Explicit login preserves account keys and rejects stale settings before saving a token.
+- `common/player_client.py` loads tag-only profiles via a fixed public HTTPS relay; `common/http_json.py` bounds complete HTTP operations and disables ambient authentication. `server/player_relay.py` is the separate Linux relay, with a filtered schema, bounded cache, quotas and deployment templates under `server/`. See `docs/PLAYER-RELAY.md`.
+- `webui/player_api.py` isolates relay/direct player loading. `player_source` defaults to `relay` for both new and existing profiles; only explicit `direct` mode contacts the developer portal. Explicit login preserves account keys and rejects stale settings before saving a token.
 - `webui/static/setup-flow.js` defines sequential emulator/account/brawlers/confirmation screens. Advanced pages retain settings, styles, history and runtime controls.
 - `webui/static/style.css` defines the graphite/yellow roster theme, responsive layouts and keyboard focus. `webui/static/icons.svg` supplies local line icons; fonts use the OS stack and portraits remain local catalog assets. The presentation refresh preserves API routes, control IDs, setup gates and runtime behavior.
 

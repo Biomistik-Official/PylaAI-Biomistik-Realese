@@ -17,7 +17,7 @@ class WebPlayerTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         (self.root / 'cfg').mkdir()
         self.path = self.root / 'cfg/brawl_stars_api.toml'
-        self.config = dict(player_tag='#TEST', developer_email='private-email',
+        self.config = dict(player_tag='#TEST', player_source='direct', developer_email='private-email',
                            developer_password='private-password', api_token='',
                            auto_refresh_token=False, delete_old_auto_tokens=True,
                            delete_all_tokens=True, timeout_seconds=15)
@@ -75,6 +75,16 @@ class WebPlayerTests(unittest.TestCase):
                 self.load()
         self.assertEqual(raised.exception.code, 'changed')
         self.assertEqual(toml.load(self.path)['api_token'], '')
+
+    def test_direct_token_result_is_rejected_when_source_changes_during_fetch(self):
+        self.path.write_text(toml.dumps(dict(self.config, api_token='existing')))
+        def fetch(*args):
+            self.path.write_text(toml.dumps(dict(self.config, player_source='relay')))
+            return {'name': 'Old profile'}
+        with patch('common.utils.fetch_brawl_stars_player', side_effect=fetch):
+            with self.assertRaises(player_api.PlayerError) as raised:
+                self.load()
+        self.assertEqual(raised.exception.code, 'changed')
 
     def test_memory_only_refresh_does_not_save_override_flags_or_revoke_keys(self):
         from common import utils

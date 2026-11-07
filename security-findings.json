@@ -1,0 +1,41 @@
+{
+  "scan_id": "scan-2026-11-07-player-relay",
+  "scan_date": "2026-11-07",
+  "scan_type": "staged",
+  "commit_range": "07bff534a6bedbcddd70dab9d31ea2e03acf8ff5..working-tree",
+  "pr_number": null,
+  "threat_model_version": "1.1.0",
+  "findings": [],
+  "summary": {
+    "total_findings": 0,
+    "by_severity": {
+      "CRITICAL": 0,
+      "HIGH": 0,
+      "MEDIUM": 0,
+      "LOW": 0
+    },
+    "by_stride": {
+      "Spoofing": 0,
+      "Tampering": 0,
+      "Repudiation": 0,
+      "InfoDisclosure": 0,
+      "DoS": 0,
+      "ElevationOfPrivilege": 0
+    },
+    "files_analyzed": 29
+  },
+  "method": "Independent source review plus author STRIDE review of staged changes; credential-pattern scan and blank-template validation; not a host penetration test.",
+  "fixed_review_findings": [
+    "Legacy account lookup source propagation",
+    "Whole-operation HTTP deadline including headers and slow bodies",
+    "Ambient netrc credential disclosure",
+    "Direct-mode stale settings rejection",
+    "Atomic cache publication and inflight cleanup",
+    "Accurate daily quota retry interval"
+  ],
+  "accepted_limitations": [
+    "Public callers can exhaust the strictly bounded relay quota",
+    "Money and relay currently share a Supercell key",
+    "No full gameplay or clean-machine installation test in this change"
+  ]
+}

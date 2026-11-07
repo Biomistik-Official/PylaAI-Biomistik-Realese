@@ -26,7 +26,7 @@ py -3.11 -m venv .venv
 The setup wizard opens in your browser, usually at [127.0.0.1:5185](http://127.0.0.1:5185):
 
 1. Select a connected emulator.
-2. Optionally connect to the Brawl Stars API. Enter your player tag and developer.brawlstars.com credentials, or an existing API token, then click the button to sign in and load your brawlers. You can skip this step.
+2. Optionally connect to the Brawl Stars API. Enter only your player tag, then click Load brawlers. Developer registration, passwords and API tokens are not needed in the default mode. You can skip this step.
 3. Select brawler cards, set trophy or win targets, and build your queue.
 4. Review the settings and click the button to start the bot.
 
@@ -38,7 +38,7 @@ Closing the browser tab does not stop gameplay: use the Stop button in the panel
 
 To play on five accounts simultaneously, you need five separate Android emulator instances, each signed in to its own Brawl Stars account. Add profiles 2–5 from the panel's overview page. In each profile, select the corresponding device with its own ADB port, configure the queue, and start the bot. Two running profiles cannot share the same emulator.
 
-Sign in to Brawl Stars inside each emulator. The optional API connection in the panel's second setup step only loads player data and trophies; it does not sign in to the game. Set the appropriate player tag for each profile's API settings. When switching computers or networks, you may need to refresh the API token for your new public IP address.
+Sign in to Brawl Stars inside each emulator. The optional API connection in the panel's second setup step only loads player data and trophies; it does not sign in to the game. Set the appropriate player tag for each profile's API settings. The default tag-only service works across computers and networks. Advanced users can choose their own direct API in Integrations.
 
 Do not copy the `.venv` folder from your old computer: recreate it using the commands above. Enter your personal settings locally on the new device.
 
@@ -46,7 +46,7 @@ Do not copy the `.venv` folder from your old computer: recreate it using the com
 
 The repository includes empty configuration templates for the API, Telegram, Discord, and login. Passwords, tokens, IDs, player tags, queues, match history, learning data, logs, and private screenshots are excluded from this publication. Enter these values locally and do not commit populated settings to Git.
 
-Leaving a password or token field empty preserves its existing value. The Clear button removes it when you save. API sign-in first tries the existing token and does not delete account keys. Set your owner ID before enabling remote control. Additional profiles are stored in `cfg_N/`.
+Leaving a password or token field empty preserves its existing value. The Clear button removes it when you save. Direct API mode first tries the existing token and does not delete account keys. The default relay mode sends only the public player tag; server and SSH credentials are never shipped with the app. See [player relay documentation](docs/PLAYER-RELAY.md) for service limits and deployment. Set your owner ID before enabling remote control. Additional profiles are stored in `cfg_N/`.
 
 ## Updates
 
