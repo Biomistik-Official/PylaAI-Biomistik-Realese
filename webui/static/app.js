@@ -239,7 +239,7 @@ function renderSettings() {
   const available=integrations?['telegram','discord','api']:['general','bot','timers'];
   let intro=integrations?'Уведомления, удалённое управление и данные твоего аккаунта.':'Параметры игры, эмулятора и производительности.';
   const direct=state.fields.find(field=>field.key==='player_source')?.value==='direct';
-  const advice=state.tab==='api'?(direct?'Для собственного API укажи тег и токен либо данные портала разработчика.':'Введи тег из профиля Brawl Stars. Регистрация разработчика и пароль не нужны. Тег передаётся сервису Pyla для загрузки открытых данных аккаунта.'):state.tab==='telegram'?'Создай бота через @BotFather. Для управления укажи токен и свой ID пользователя.':state.tab==='discord'?'Укажи webhook для уведомлений. Для команд управления добавь токен бота и ID владельца.':'';
+  const advice=state.tab==='api'?(direct?'Для собственного API укажи тег и токен либо данные портала разработчика.':''):state.tab==='telegram'?'Создай бота через @BotFather. Для управления укажи токен и свой ID пользователя.':state.tab==='discord'?'Укажи webhook для уведомлений. Для команд управления добавь токен бота и ID владельца.':'';
   const guided=state.step===1;
   const player=state.players[state.instance];
   const visibleFields=state.tab==='api'?(!direct?['player_tag',...(guided?[]:['player_source','timeout_seconds'])]:guided?['player_tag','developer_email','developer_password','api_token']:null):null;
